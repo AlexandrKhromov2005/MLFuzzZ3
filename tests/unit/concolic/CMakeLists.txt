@@ -1,0 +1,46 @@
+add_executable(test_concolic
+  test_concolic.cpp
+  test_throttle.cpp
+  test_domain_map.cpp
+  test_unsat_anatomy.cpp
+  test_binding_collision.cpp
+  test_width_shadowing.cpp
+  test_target_selection.cpp
+  test_domain_width_map.cpp
+  test_addvars_false_composition.cpp
+  test_addvars_width_threshold_cost.cpp
+  test_addvars_const_side_cost.cpp
+  test_binding_discriminator.cpp
+  test_xor_gate_arm.cpp
+  test_unsat_attribution.cpp
+  test_domain_form_width_endian.cpp
+  test_domain_arity.cpp
+  test_both_sides_derived.cpp
+  test_both_sides_literal.cpp
+  test_false_success.cpp
+  test_predicate_axis.cpp
+  test_binding_overlap.cpp
+  test_both_sides_literal_widths.cpp
+  test_binding_overlap_order.cpp
+  test_predicate_literal_side.cpp
+  test_w8_literal_absorption.cpp
+  test_binding_overlap_arity.cpp
+  test_discriminator_residual.cpp
+  test_binding_overlap_mixed_endian.cpp
+  test_discriminator_width_endian.cpp
+  test_p_degeneracy.cpp
+  test_binding_overlap_reverse_mixed.cpp
+  test_binding_collapse_mirrored.cpp
+  test_domain_arity_forms.cpp
+  test_adr0049_fixes.cpp
+  test_binding_provider.cpp
+)
+
+target_link_libraries(test_concolic
+  PRIVATE
+    fuzzer::concolic
+    fuzzer::warnings
+    GTest::gtest_main
+)
+
+gtest_discover_tests(test_concolic)

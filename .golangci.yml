@@ -1,0 +1,24 @@
+version: "2"
+
+run:
+  timeout: 3m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+
+# In golangci-lint v2 gofmt moved out of linters into the formatters group,
+# and gosimple is now folded into staticcheck (the S1xxx check family).
+formatters:
+  enable:
+    - gofmt

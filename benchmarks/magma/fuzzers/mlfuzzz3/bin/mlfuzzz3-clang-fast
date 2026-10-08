@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Self-injecting clang wrapper for the Magma comparative benchmark (ADR 0045).
+#
+# Mirrors afl-clang-fast: applies the project's LLVM passes (BranchTracePass
+# first, then EdgeCoveragePass — ADR 0040/0041) on every compile, and links the
+# coverage runtime (libmlfuzzz3_cov) on every link step. This self-sufficiency
+# is what lets a target's ./configure run under $CC = this wrapper: autoconf
+# conftest programs are compiled+linked+run by configure with $CC alone (no
+# $LIBS), so the runtime must ride in via the compiler, exactly as
+# afl-clang-fast injects the AFL runtime. ADR 0042's fallback bitmap keeps an
+# instrumented conftest from crashing when it runs without a coverage fd.
+#
+# Env contract (set by fuzzers/mlfuzzz3/instrument.sh):
+#   MLFUZZZ3_EDGE_PASS    libEdgeCoveragePass.so
+#   MLFUZZZ3_BRANCH_PASS  libBranchTracePass.so
+#   MLFUZZZ3_COV_LIB      libmlfuzzz3_cov.so
+#   MLFUZZZ3_CLANG        real C compiler   (default: clang-20)
+#   MLFUZZZ3_CLANGXX      real C++ compiler (default: clang++-20)
+set -euo pipefail
+
+case "$(basename "$0")" in
+    *++) real="${MLFUZZZ3_CLANGXX:-clang++-20}" ;;
+    *)   real="${MLFUZZZ3_CLANG:-clang-20}" ;;
+esac
+
+EDGE="${MLFUZZZ3_EDGE_PASS:?MLFUZZZ3_EDGE_PASS must be set}"
+BRANCH="${MLFUZZZ3_BRANCH_PASS:?MLFUZZZ3_BRANCH_PASS must be set}"
+COV="${MLFUZZZ3_COV_LIB:?MLFUZZZ3_COV_LIB must be set}"
+COVDIR="$(cd "$(dirname "${COV}")" && pwd)"
+
+# A link step produces an executable/.so. -c/-E/-S/-fsyntax-only/-M* do not.
+link=1
+for a in "$@"; do
+    case "$a" in
+        -c|-E|-S|-fsyntax-only|-M|-MM) link=0 ;;
+    esac
+done
+
+# Passes ride on every invocation; -Wno-unused-command-line-argument keeps a
+# link-only step (passes unused, no compile) from erroring under a target's
+# -Werror. -Wno-implicit-function-declaration mitigates pre-modern-clang code.
+pre=(-fpass-plugin="${BRANCH}" -fpass-plugin="${EDGE}"
+     -Wno-unused-command-line-argument -Wno-implicit-function-declaration)
+
+post=()
+if [ "${link}" -eq 1 ]; then
+    # Coverage runtime last so the linker still has the unresolved
+    # __mlfuzzz3_cov_map / fuzzer_rt_log_branch_cmp references when it sees it.
+    post=("${COV}" -Wl,-rpath,"${COVDIR}")
+fi
+
+exec "${real}" "${pre[@]}" "$@" "${post[@]}"

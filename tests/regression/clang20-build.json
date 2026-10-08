@@ -1,0 +1,10 @@
+{
+  "description": "Clang 20 Debug: сборка исследовательского интеграционного теста без неиспользуемых констант",
+  "target": "test_solver_fix_ladder",
+  "source": "tests/integration/concolic/test_solver_fix_ladder.cpp",
+  "compiler": "clang++-20",
+  "configuration": "Debug",
+  "original_diagnostic": "unused variable 'kBitsPerByte' [-Werror,-Wunused-const-variable]",
+  "verification": "cmake --build build --target test_solver_fix_ladder -j4",
+  "expected_exit_code": 0
+}

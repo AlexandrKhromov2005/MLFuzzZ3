@@ -1,0 +1,7 @@
+# Минимальная конфигурация MLFuzzZ3.
+# Описание полей: docs/CONFIG.md.
+log:
+  # trace | debug | info | warn | error | critical
+  level: info
+  # text | json
+  format: text

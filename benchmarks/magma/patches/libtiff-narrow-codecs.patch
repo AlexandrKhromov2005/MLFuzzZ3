@@ -1,0 +1,28 @@
+--- a/build.sh
++++ b/build.sh
+@@ -19,8 +19,16 @@
+ mkdir -p "$WORK/lib" "$WORK/include"
+ 
+ cd "$TARGET/repo"
+-./autogen.sh
+-./configure --disable-shared --prefix="$WORK"
++# autogen.sh minus its fatal git.savannah fetch of config.guess/config.sub
++# (ADR-0046 Step 2): automake --add-missing installs them offline, and the
++# pinned build must not depend on savannah reachability. Under build.sh set -e
++# any autotools step failing aborts loudly (stricter than upstream autogen.sh).
++libtoolize --force --copy
++aclocal -I ./m4
++autoheader
++automake --foreign --add-missing --copy
++autoconf
++./configure --disable-shared --prefix="$WORK" --disable-jpeg --disable-lzma --disable-zstd
+ make -j$(nproc) clean
+ make -j$(nproc)
+ make install
+@@ -28,5 +36,5 @@
+ cp "$WORK/bin/tiffcp" "$OUT/"
+ $CXX $CXXFLAGS -std=c++11 -I$WORK/include \
+     contrib/oss-fuzz/tiff_read_rgba_fuzzer.cc -o $OUT/tiff_read_rgba_fuzzer \
+-    $WORK/lib/libtiffxx.a $WORK/lib/libtiff.a -lz -ljpeg -Wl,-Bstatic -llzma -Wl,-Bdynamic \
++    $WORK/lib/libtiffxx.a $WORK/lib/libtiff.a -lz \
+     $LDFLAGS $LIBS

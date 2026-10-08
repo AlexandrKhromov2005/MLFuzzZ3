@@ -1,0 +1,5 @@
+add_subdirectory(unit)
+add_subdirectory(cross)
+add_subdirectory(fixtures)
+add_subdirectory(runtime)
+add_subdirectory(integration)

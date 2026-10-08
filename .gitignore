@@ -1,0 +1,16 @@
+build/
+build-*/
+.cache/
+.fuzz-cache/
+.z3-trace
+*.o
+*.a
+__pycache__/
+*.pyc
+.idea/
+.vscode/settings.json
+.DS_Store
+exec-server/exec-server
+benchmarks/lava-m/vendor/
+benchmarks/magma/vendor/
+benchmarks/magma/fuzzers/mlfuzzz3/bin/mlfuzzz3-clang-fast++

@@ -1,0 +1,202 @@
+// IPC schema between the C++ fuzzer core and the Go execution server.
+//
+// This schema implements the IPC protocol defined in ADR 0004. Wire
+// format: length-prefixed protobuf envelopes (4-byte LE prefix, 1 MiB
+// max) over a Unix domain socket. Data plane (SHM segments) is not on
+// the wire — memfd file descriptors are passed via SCM_RIGHTS in
+// ChannelAnnouncement messages; see ADR 0008.
+
+syntax = "proto3";
+
+package mlfuzzz3.ipc.v1;
+
+option go_package = "mlfuzzz3/exec-server/internal/proto;ipcv1";
+option cc_enable_arenas = true;
+
+// Outcome of a single target execution. Returned in RunResponse.status.
+enum ExecStatus {
+  EXEC_STATUS_UNSPECIFIED = 0;
+  EXEC_STATUS_OK          = 1;
+  EXEC_STATUS_CRASH       = 2;
+  EXEC_STATUS_HANG        = 3;
+  // Signals an IPC-side problem (crashed worker, broken channel to a
+  // worker). The client decides whether to re-establish the session or
+  // abort — this policy lives in the fuzzer core, not the protocol.
+  EXEC_STATUS_IPC_ERROR   = 4;
+}
+
+// First message on a fresh connection. Carries the client's protocol
+// version and the session-wide per-run timeout policy.
+message InitRequest {
+  uint32 protocol_version_major = 1;
+  uint32 protocol_version_minor = 2;
+
+  // Per-run timeout in milliseconds, applied uniformly to every
+  // RunRequest in this session. Server kills the worker if a single
+  // exec exceeds this. 0 = no timeout (not recommended in production;
+  // allowed for debugging).
+  uint64 run_timeout_ms = 3;
+}
+
+// Server reply to InitRequest. Major mismatch → both sides abort with
+// diagnostic log; minor mismatch is warn-level per ADR 0004.
+message InitResponse {
+  uint32 protocol_version_major = 1;
+  uint32 protocol_version_minor = 2;
+}
+
+// Static metadata for an edge-coverage shared-memory region. The memfd
+// itself travels out-of-band via SCM_RIGHTS alongside the enclosing
+// ChannelAnnouncement message (see ADR 0008).
+message EdgeCoverageDescriptor {
+  // Debug-only symbolic name of the memfd (visible in
+  // /proc/PID/fd/<n> as memfd:<shm_name>). Not a registry key.
+  string shm_name       = 1;
+
+  // Byte offset and length of the usable region inside the SHM.
+  uint64 offset         = 2;
+  uint64 length         = 3;
+
+  // Bumped by 1 on any SHM-layout change for this channel. Reader
+  // must compare strictly against its expected value; mismatch is
+  // a hard error, no automatic migration.
+  uint32 schema_version = 4;
+}
+
+// Static metadata for a branch-value shared-memory region (ADR 0033).
+// Mirrors EdgeCoverageDescriptor: the memfd travels out-of-band via
+// SCM_RIGHTS alongside the enclosing ChannelAnnouncement. The segment
+// carries an append-only log of per-comparison records; its on-wire
+// layout is the runtime branch ABI (src/runtime/coverage/
+// mlfuzzz3_branch.h), independent of the edge bitmap.
+message BranchValuesDescriptor {
+  // Debug-only symbolic name of the memfd (visible in
+  // /proc/PID/fd/<n> as memfd:<shm_name>). Not a registry key.
+  string shm_name       = 1;
+
+  // Byte offset and length of the usable region inside the SHM.
+  uint64 offset         = 2;
+  uint64 length         = 3;
+
+  // Bumped by 1 on any branch-segment layout change. Reader compares
+  // strictly against its expected value; mismatch is a hard error.
+  uint32 schema_version = 4;
+}
+
+// Server-initiated message carrying the descriptor for a single
+// channel; the matching memfd is attached via SCM_RIGHTS auxiliary
+// data. Sent once per active channel immediately after the handshake
+// and before the first RunRequest.
+message ChannelAnnouncement {
+  oneof descriptor {
+    EdgeCoverageDescriptor  edge   = 1;
+    BranchValuesDescriptor  branch = 2;  // ADR 0033
+    // Phase 5 will add: ThreadEventsDescriptor  thread = 3;
+  }
+}
+
+// Client acknowledgement of a ChannelAnnouncement. The server waits
+// for one Ack per channel before accepting RunRequests.
+message ChannelAnnouncementAck {
+  // Intentionally empty — only the fact of receipt is meaningful.
+}
+
+// Per-run result metadata for the edge-coverage channel.
+message EdgeRunResult {
+  // 0-indexed position in the ChannelAnnouncement list delivered at
+  // handshake. Identifies which announced memfd was written to during
+  // this Run. Per ADR 0019 Task 8c (multi-worker coverage).
+  int32 channel_index = 1;
+
+  // Count of bucketized edge bits newly observed in this Run relative
+  // to the server-side global seen-map (process lifetime). 0 = no new
+  // coverage. Bucketization is server-side (AFL-classic 8-bin scheme);
+  // the SHM bitmap layout itself is unchanged, so
+  // EdgeCoverageDescriptor.schema_version stays at 1.
+  // Per ADR 0021 Task 8d.
+  uint32 new_edges = 2;
+}
+
+// Per-run result metadata for the branch-value channel (ADR 0033).
+// The records themselves are not on the wire — the reader accesses the
+// announced SHM segment directly. This carries only the run-level
+// summary the core needs to interpret that segment.
+message BranchRunResult {
+  // Number of comparison records the runtime appended this run (the
+  // segment header's count). The reader consumes exactly this many
+  // records from the segment.
+  uint32 record_count = 1;
+
+  // True if the runtime dropped records because the segment filled up
+  // (header overflow_flag). The log is then incomplete; downstream
+  // concolic stages (0034+) must treat it as truncated.
+  bool overflow       = 2;
+}
+
+// Request to execute the target once with the given input.
+message RunRequest {
+  // Test input passed to the target binary.
+  bytes input = 1;
+
+  // reserved 2 to 9: future per-run overrides (priority,
+  // channel_mask, reset_coverage_before, etc.). Deferred — not
+  // needed in Phase 1/2.
+  reserved 2 to 9;
+}
+
+// Reply to RunRequest. Coverage data is not on the wire — readers
+// access it through the SHM region announced in ChannelAnnouncement.
+message RunResponse {
+  // Monotonic counter within the current connection; reset on every
+  // new connection. Advisory for client-side correlation.
+  uint64 run_id                      = 1;
+
+  ExecStatus status                  = 2;
+
+  // Optional free-form diagnostic, typically set for CRASH / HANG /
+  // IPC_ERROR statuses.
+  string error_message               = 3;
+
+  // Per-channel run results live under per-channel tags. Multiple
+  // channels may be active simultaneously, so these are plain
+  // optional fields (not a oneof).
+  optional EdgeRunResult edge_result     = 10;
+
+  // Branch-value channel run summary (ADR 0033). Present when the
+  // branch channel is active for this run.
+  optional BranchRunResult branch_result = 11;
+
+  reserved 12 to 19;
+  // 12 — ThreadRunResult  (Phase 5)
+  // 13..19 — memory и future (Phase 6+)
+}
+
+// Client's request to terminate the session cleanly.
+message ShutdownRequest {
+  // reserved for future: reason code, drain_timeout_ms, etc.
+  reserved 1 to 9;
+}
+
+// Server acknowledgement that the session was shut down cleanly.
+// No status/ok field: if the server replies at all, shutdown is
+// considered successful. Worker-level errors would have surfaced
+// via prior RunResponse's ExecStatus.
+message ShutdownResponse {
+  reserved 1 to 9;
+}
+
+// Wire-level envelope. Every framed protobuf message on the socket
+// is one of these. Unknown payload variants must be diagnosed as
+// an error (see protocol_version_minor rules in ADR 0004).
+message Envelope {
+  oneof payload {
+    InitRequest             init_request              = 1;
+    InitResponse            init_response             = 2;
+    RunRequest              run_request               = 3;
+    RunResponse             run_response              = 4;
+    ShutdownRequest         shutdown_request          = 5;
+    ShutdownResponse        shutdown_response         = 6;
+    ChannelAnnouncement     channel_announcement      = 7;
+    ChannelAnnouncementAck  channel_announcement_ack  = 8;
+  }
+}

@@ -1,0 +1,9 @@
+# LLVM plugin code uses upstream LLVM API patterns (factories return
+# raw pointers managed by Module/Context; extern "C" plugin entry
+# point; lambdas that capture by reference into pass-builder
+# callbacks) that don't align with the project's cppcoreguidelines/
+# modernize/readability rules. The file is small and reviewed
+# manually; disable repo-wide checks here rather than littering the
+# code with NOLINT pragmas.
+Checks: '-*'
+WarningsAsErrors: ''

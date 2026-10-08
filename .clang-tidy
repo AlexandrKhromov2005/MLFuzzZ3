@@ -1,0 +1,51 @@
+# Rationale for disabled checks (see ADR 0006):
+#
+# -performance-enum-size: LogLevel/LogFormat in src/common/config.h
+#     are not on any hot path; narrowing the underlying type to save
+#     3 bytes is a micro-optimization that obscures intent. Applied
+#     repo-wide because the same cost/benefit holds for any future
+#     small-cardinality config enum.
+#
+# -cppcoreguidelines-macro-usage: LOG_TRACE/DEBUG/INFO/WARN/ERROR/
+#     CRITICAL in src/common/log.h are thin wrappers over spdlog
+#     SPDLOG_* macros, which capture __FILE__/__LINE__/__func__ at
+#     the call site. The spdlog logging API is macro-based by
+#     design; rewriting the facade around std::source_location to
+#     satisfy the linter is not justified scope for Phase 0 and may
+#     be revisited when IPC logging lands in Phase 1.
+#
+# Both were originally observed only under the older docker clang-tidy
+# (18.1.3) and not on the host. ADR 0043 moved the docker image onto the
+# same clang-tidy 20.1.2 as the host (native Ubuntu noble-updates
+# clang-20), so the canonical CI and the host now run the identical
+# linter with no version drift. The two checks stay disabled on their
+# own merits (above), not because of any host/docker divergence. See
+# docs/DECISIONS/0043-toolchain-source-native-clang20-supersede-0006.md.
+#
+# HeaderFilterRegex limits analysis to our own headers. Third-party
+# dependencies are pulled in via FetchContent with the SYSTEM keyword
+# (see CMakeLists.txt), so their headers reach the compiler as -isystem
+# includes; clang-tidy skips system headers by default, so the substring
+# include pattern above no longer matches build/_deps/*/include/
+# (tl::expected, googletest, protobuf) and no explicit exclude is needed.
+# (The exclude was also unparseable by the old docker clang-tidy 18.1.3,
+# which did not know the ExcludeHeaderFilterRegex key; since ADR 0043 the
+# docker linter is clang-tidy 20, but SYSTEM makes the exclude unnecessary
+# regardless, so it stays out.)
+---
+Checks: >
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -performance-enum-size,
+  -cppcoreguidelines-macro-usage
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(src|include)/.*'

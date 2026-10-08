@@ -1,0 +1,21 @@
+add_executable(test_common_config
+  test_config.cpp
+)
+target_link_libraries(test_common_config
+  PRIVATE
+    fuzzer::common
+    fuzzer::warnings
+    GTest::gtest_main
+)
+gtest_discover_tests(test_common_config)
+
+add_executable(test_common_log
+  test_log.cpp
+)
+target_link_libraries(test_common_log
+  PRIVATE
+    fuzzer::common
+    fuzzer::warnings
+    GTest::gtest_main
+)
+gtest_discover_tests(test_common_log)

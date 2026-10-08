@@ -1,0 +1,9 @@
+# clang-tidy overrides for IPC module (ADR 0010).
+#
+# readability-magic-numbers disabled because shift
+# constants (8, 16, 24) in little-endian byte packing
+# are wire format specification, not business magic.
+---
+InheritParentConfig: true
+Checks: >
+  -readability-magic-numbers
