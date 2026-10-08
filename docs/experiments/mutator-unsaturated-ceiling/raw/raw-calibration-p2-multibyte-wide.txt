@@ -1,0 +1,65 @@
+# Сырьё калибровки mutator-unsaturated-ceiling. Не редактировать руками.
+# Команда: python3 docs/experiments/mutator-unsaturated-ceiling/collect.py calibrate p2-multibyte-wide --budget 10000 --ceil-mult 10 --afl-seconds 25 --scratch <scratch> > <сырьё> 2>&1
+
+MUC meta key=profile value=p2-multibyte-wide
+MUC meta key=profile_note value=многобайтовые равенства, истинная ветка берётся с шансом 2^-16..2^-64
+MUC meta key=git_head value=b3d181ea8e4bd8b6d3128a60c02d76b14672d5bc
+MUC meta key=git_dirty_tracked value=0
+MUC meta key=clang value=clang version 20.1.8 (Fedora 20.1.8-9.fc44)
+MUC meta key=python value=3.14.7
+MUC meta key=uname value=Linux 7.1.8-200.fc44.x86_64
+MUC meta key=numpy value=2.4.6
+
+== 0. порог решения, объявленный до прогона ==
+MUC threshold headroom_cells_min=632 headroom_frac_min=0.05 budget=10000 ceil_budget=100000 arms=3
+MUC threshold_source cells_min=prior_max_gap_632 frac_min=declared_here ceil_mult_source=cost_of_planned_comparison_3arms_x_5repeats
+MUC prior_anchor target=dense_120x60 ceiling_400=17302 ceiling_10000=17649 growth_x25_frac=0.0197 union_three_arms_10000=17717 headroom_cells=-68 (тот же критерий на прежней цели: запас отрицателен)
+
+== 1. цель профиля ==
+CMD_GEN python3 docs/experiments/cmp-baselines-preflight/gen_target.py --seed 20260910 --funcs 200 --cmps 60 -o <scratch>/target.c
+MUC gen_target: seed=20260910 funcs=200 cmps_per_func=60 cmps_total=12000 w16=4070 w32=4006 w64=3924 bytes=1807776 md5=ad9d2c14729437e38143be848ef21d84
+CMD_BUILD clang -O2 -fpass-plugin=build/src/instrumentation/edge_coverage_pass/libEdgeCoveragePass.so -o <scratch>/cal_target <scratch>/target.c build/src/runtime/coverage/libmlfuzzz3_cov.so
+MUC build rc=0 target_md5=45f90f0a71e746d06ba2544be067f72b bytes=1659408
+MUC probes cov_map_ir=36803 edges_total=36802
+MUC model cells_if_all_edges_hit=28159 map_size=65536 (модель равномерного расклада, не измерение)
+MUC meta key=min_input_len value=128
+MUC stage_wall stage=target seconds=18
+
+== 2. общий корпус трёх плеч ==
+MUC corpus file=c00.bin bytes=158 md5=cc4019fc8dae49cd132df748e01bb9ce
+MUC corpus file=c01.bin bytes=195 md5=56d533206b8bcabad4f45ddbd572a3aa
+MUC corpus file=c02.bin bytes=254 md5=ab5b15bd01e86fb33fd1e0a3f138c9d8
+MUC corpus_meta files=3 rng_seed=20260910 minlen=128 maxlen=256
+CMD_REGBIN clang++ -std=c++20 -O2 -I src -o <scratch>/mutator_stream tests/fixtures/mutator_stream/mutator_stream.cpp src/mutation/mutators/havoc.cpp src/mutation/deterministic_stage.cpp src/mutation/ops.cpp
+MUC regbin rc=0 md5=68a72f89231bb3091750b30b5804cfa9
+MUC stage_wall stage=corpus seconds=0
+
+== 3. потоки плеч (бюджет калибратора = префикс не режется) ==
+CMD_FOREIGN timeout -s INT 25 afl-fuzz -n -s 1 -i <scratch>/in -o <scratch>/aflout -- <scratch>/mutator_stream record <streams>/foreign-r1.log
+MUC stream arm=foreign records_total=42258 records_read=10000 ge_min_len=9883 maxlen=502 bytes=7783291
+MUC stream arm=ours_havoc records_total=100000 records_read=100000 ge_min_len=98434 maxlen=821 bytes=24677922
+MUC stream arm=ours_det records_total=10000 records_read=10000 ge_min_len=10000 maxlen=254 bytes=2063289
+MUC stage_wall stage=streams seconds=25
+
+== 4. ПОТОЛОК — печатается ДО объединения плеч ==
+MUC ceiling source=random_sweep inputs=100000 seed=20260911 cells=22415
+MUC ceiling_growth arm=random_sweep cells_at_budget=19900 cells_at_ceil_budget=22415 mult=10 gain_cells=2515 gain_frac=0.1122
+MUC ceiling source=arm_ours_havoc inputs=100000 cells=20705
+MUC ceiling_growth arm=ours_havoc cells_at_budget=19709 cells_at_ceil_budget=20705 mult=10 gain_cells=996 gain_frac=0.0481
+MUC ceiling_reached source=union_random_and_arm cells=22835 (это НИЖНЯЯ оценка достижимого потолка: то, что уже достигнуто)
+MUC stage_wall stage=ceiling seconds=464
+
+== 5. объединение трёх плеч на бюджете сравнения ==
+MUC arm arm=ours_havoc inputs=10000 cells=19709 repeat=1 (единичный повтор, НЕ медиана)
+MUC arm arm=foreign inputs=10000 cells=19595 repeat=1 (единичный повтор, НЕ медиана)
+MUC arm arm=ours_det inputs=10000 cells=19331 repeat=1 (единичный повтор, НЕ медиана)
+MUC union_three_arms arms=3 inputs_per_arm=10000 cells=19759
+MUC stage_wall stage=arms seconds=47
+
+== 6. запас ==
+MUC headroom ceiling_reached=22835 union_three_arms=19759 headroom_cells=3076 headroom_frac=0.1347
+MUC decision profile=p2-multibyte-wide headroom_cells=3076>=632:yes headroom_frac=0.1347>=0.05:yes verdict=HEADROOM-PROVEN saturated=no
+MUC prior_gaps max_gap_different_corpora=632 min_gap_one_corpus=69 (разные замеры, в один ряд не ставятся)
+MUC arms_comparison_published=no (медианы, повторы и парные критерии не снимаются, пока запас не доказан)
+
+# Конец сырья.

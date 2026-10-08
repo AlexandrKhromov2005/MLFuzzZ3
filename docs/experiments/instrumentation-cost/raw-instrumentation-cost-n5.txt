@@ -1,0 +1,122 @@
+# task-126 — статическая цена собственной инструментации (ADR-0024, ADR-0033)
+# commit: 62671c2
+# repeats=5 seed=20260908 funcs=120 branches_per_func=60
+# Перегенерация из корня репозитория (перенаправлены И stdout, И stderr):
+#   bash docs/experiments/instrumentation-cost/run.sh --repeats 5 \
+#     --seed 20260908 --funcs 120 --branches 60 \
+#     > docs/experiments/instrumentation-cost/raw-instrumentation-cost-n5.txt 2>&1
+# Новых прогонов фаззинга: 0. Новых кампаний: 0. Правок src/: 0.
+#
+# ПРАВИЛА, ВЫПИСАННЫЕ ДО ЗАМЕРА:
+#  R1 отбрасывание прогрева: НЕ применяется. Публикуются ВСЕ значения,
+#     медиана считается по всем без исключения, первый повтор не отбрасывается.
+#  R2 время сборки: wall-clock полной команды компиляции+линковки, каждый
+#     повтор в свежий выходной файл, секунды с тремя знаками.
+#  R3 счёт проб, отдельно для каждой схемы (единицы РАЗНЫЕ, см. R4).
+#     ВАЖНО: считается число ВСТАВЛЕННЫХ проб, а не выживших после -O2.
+#     Счёт по релокациям в -O2-объектнике НЕПРИГОДЕН и не применяется: при
+#     -O2 все статические функции цели инлайнятся в одну, адрес карты
+#     материализуется один раз на функцию, и счётчик даёт 2 вместо тысяч.
+#     Поэтому наши плечи считаются по LLVM IR, порождённому ТЕМ ЖЕ пассом
+#     на -O0 (пасс регистрируется на PipelineStartEP, то есть вставка та же):
+#     plain       — проб нет по построению; все счётчики печатаются, все нули;
+#     ours        — число вхождений '@__mlfuzzz3_cov_map' в -O0 IR (одно на
+#                   вставленную рёберную пробу — доступ к карте);
+#     ours_branch — то же плюс число вызовов '@fuzzer_rt_log_branch_cmp'
+#                   в -O0 IR (один на пробу канала); печатаются оба числа;
+#     pcguard     — число guard-слов: СУММА размеров всех секций
+#                   '__sancov_guards' в -O2 .o, делённая на 4 (секций две:
+#                   основная и хвостовая, суммируются обе); рядом печатается
+#                   число, которое сам afl-clang-fast сообщает в stderr;
+#     classic     — число из stderr afl-clang-fast ('Instrumented N');
+#     sancov      — сумма '__sancov_guards' / 4 по тому же правилу.
+#  R4 несопоставимость: 'ours' считает РЁБРА (пара блоков), 'pcguard' и
+#     'sancov' считают ГВАРДЫ (точки вставки на блок), 'classic' считает
+#     точки вставки AFL. Пары (ours,pcguard), (ours,sancov), (ours,classic)
+#     НЕСОПОСТАВИМЫ по абсолютному числу проб и помечаются как таковые.
+#     Сопоставимы между собой только 'ours' и 'ours_branch'.
+#  R5 цена канала значений ветвлений: ТОЛЬКО прямая разность наших двух
+#     плеч (ours_branch минус ours), без участия чужих плеч.
+#  R6 плечо, которое не собралось, печатается строкой status=failed с
+#     текстом ошибки и НЕ выбрасывается; arms_built + arms_failed = 6.
+#  R7 поправка Д3 (выписана до замера): grep по -O0 IR ловит ещё и строку
+#     ОБЪЯВЛЕНИЯ глобала карты, поэтому публикуемое число проб равно
+#     probes_cov_map_ir минус 1. Печатаются ОБА числа: сырое и поправленное.
+#     Для чужих плеч поправка неприменима и печатается '-'.
+#  R8 поправка Д1 (classic): число проб снимается ОТДЕЛЬНОЙ диагностической
+#     сборкой с AFL_DEBUG=1 ВНЕ цикла замера времени — тайминги от этого не
+#     зависят. Если и она молчит, печатается '-' и число не публикуется.
+#  R9 поправка Д2 (sancov/pcguard): рядом с числом гвардов из -O2 объектника
+#     печатается число из -O0 объектника той же командой. Расхождение -O0 и
+#     -O2 РАЗДЕЛЯЕТ две гипотезы Д2: если на -O0 гвардов тысячи, схема
+#     инструментирует то, что осталось ПОСЛЕ оптимизаций, и правило счёта
+#     верно; если и на -O0 их единицы, дефект в конфигурации плеча.
+#
+# СРЕДА:
+#   clang:          clang version 20.1.8 (Fedora 20.1.8-9.fc44)
+#   afl-clang-fast: clang version 20.1.8 (Fedora 20.1.8-9.fc44)
+#   uname:          Linux 7.1.8-200.fc44.x86_64
+
+== GEN ==
+gen_target: seed=20260908 funcs=120 branches_per_func=60 branches_total=7200 bytes=543428 md5=cadef81606c3a304cd3ff8407478f7fd
+gen_target: seed=20260908 funcs=120 branches_per_func=60 branches_total=7200 bytes=543428 md5=cadef81606c3a304cd3ff8407478f7fd
+gen_determinism=OK (повторный запуск дал побайтово тот же файл)
+target_md5=cadef81606c3a304cd3ff8407478f7fd target_bytes=543428 target_lines=36860
+bb_count_llvm_ir_O0=22082 (метки блоков 21960 + входные блоки функций 122; -O0 IR, до оптимизаций)
+bb_count_llvm_ir_O2_labels=2 (для сведения: после -O2 цель инлайнится в одну функцию)
+
+== ARM plain ==
+cmd: clang -O2 -o <work>/out_plain <work>/target.c
+arm=plain repeat=1 build_s=1.754 rc=0
+arm=plain repeat=2 build_s=1.789 rc=0
+arm=plain repeat=3 build_s=1.776 rc=0
+arm=plain repeat=4 build_s=1.771 rc=0
+arm=plain repeat=5 build_s=1.748 rc=0
+arm=plain n=5 build_s_median=1.771 build_s_min=1.748 build_s_max=1.789 bin_bytes=180592 text_bytes=167819 probes_cov_map_ir=0 probes_cov_map_corrected=0 probes_branch_ir=0 sancov_guards=0 sancov_guards_O0=- guards_section_bytes=0 afl_reported=- afl_debug_reported=-
+
+== ARM ours ==
+cmd: clang -O2 -fpass-plugin=build/src/instrumentation/edge_coverage_pass/libEdgeCoveragePass.so -o <work>/out_ours <work>/target.c build/src/runtime/coverage/libmlfuzzz3_cov.so -Wl,-rpath,build/src/runtime/coverage
+arm=ours repeat=1 build_s=5.344 rc=0
+arm=ours repeat=2 build_s=5.330 rc=0
+arm=ours repeat=3 build_s=5.357 rc=0
+arm=ours repeat=4 build_s=5.336 rc=0
+arm=ours repeat=5 build_s=5.319 rc=0
+arm=ours n=5 build_s_median=5.336 build_s_min=5.319 build_s_max=5.357 bin_bytes=868872 text_bytes=858985 probes_cov_map_ir=22083 probes_cov_map_corrected=22082 probes_branch_ir=0 sancov_guards=0 sancov_guards_O0=- guards_section_bytes=0 afl_reported=- afl_debug_reported=-
+
+== ARM ours_branch ==
+cmd: clang -O2 -fpass-plugin=build/src/instrumentation/branch_trace_pass/libBranchTracePass.so -fpass-plugin=build/src/instrumentation/edge_coverage_pass/libEdgeCoveragePass.so -o <work>/out_ours_branch <work>/target.c build/src/runtime/coverage/libmlfuzzz3_cov.so -Wl,-rpath,build/src/runtime/coverage
+arm=ours_branch repeat=1 build_s=7.866 rc=0
+arm=ours_branch repeat=2 build_s=7.875 rc=0
+arm=ours_branch repeat=3 build_s=7.866 rc=0
+arm=ours_branch repeat=4 build_s=7.893 rc=0
+arm=ours_branch repeat=5 build_s=7.773 rc=0
+arm=ours_branch n=5 build_s_median=7.866 build_s_min=7.773 build_s_max=7.893 bin_bytes=1204800 text_bytes=1193097 probes_cov_map_ir=22083 probes_cov_map_corrected=22082 probes_branch_ir=7320 sancov_guards=0 sancov_guards_O0=- guards_section_bytes=0 afl_reported=- afl_debug_reported=-
+
+== ARM pcguard ==
+cmd: afl-clang-fast -O2 -o <work>/out_pcguard <work>/target.c
+arm=pcguard repeat=1 build_s=43.199 rc=0
+arm=pcguard repeat=2 build_s=43.316 rc=0
+arm=pcguard repeat=3 build_s=43.431 rc=0
+arm=pcguard repeat=4 build_s=41.149 rc=0
+arm=pcguard repeat=5 build_s=43.489 rc=0
+arm=pcguard n=5 build_s_median=43.316 build_s_min=41.149 build_s_max=43.489 bin_bytes=775520 text_bytes=452458 probes_cov_map_ir=0 probes_cov_map_corrected=- probes_branch_ir=0 sancov_guards=14352 sancov_guards_O0=14643 guards_section_bytes=57408 afl_reported=- afl_debug_reported=14351
+
+== ARM classic ==
+cmd: AFL_LLVM_INSTRUMENT=CLASSIC afl-clang-fast -O2 -o <work>/out_classic <work>/target.c
+arm=classic repeat=1 build_s=2.178 rc=0
+arm=classic repeat=2 build_s=2.233 rc=0
+arm=classic repeat=3 build_s=2.223 rc=0
+arm=classic repeat=4 build_s=2.130 rc=0
+arm=classic repeat=5 build_s=2.108 rc=0
+arm=classic n=5 build_s_median=2.178 build_s_min=2.108 build_s_max=2.233 bin_bytes=477376 text_bytes=200586 probes_cov_map_ir=0 probes_cov_map_corrected=- probes_branch_ir=0 sancov_guards=0 sancov_guards_O0=0 guards_section_bytes=0 afl_reported=- afl_debug_reported=3
+
+== ARM sancov ==
+cmd: clang -O2 -fsanitize-coverage=trace-pc-guard -o <work>/out_sancov <work>/target.c build/src/runtime/coverage/libmlfuzzz3_cov.so -Wl,-rpath,build/src/runtime/coverage
+arm=sancov repeat=1 build_s=1.846 rc=0
+arm=sancov repeat=2 build_s=1.821 rc=0
+arm=sancov repeat=3 build_s=1.816 rc=0
+arm=sancov repeat=4 build_s=1.833 rc=0
+arm=sancov repeat=5 build_s=1.820 rc=0
+arm=sancov n=5 build_s_median=1.821 build_s_min=1.816 build_s_max=1.846 bin_bytes=587560 text_bytes=354194 probes_cov_map_ir=0 probes_cov_map_corrected=- probes_branch_ir=0 sancov_guards=4 sancov_guards_O0=14642 guards_section_bytes=16 afl_reported=- afl_debug_reported=-
+
+== END ==

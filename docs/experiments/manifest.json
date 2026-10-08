@@ -1,0 +1,28 @@
+{
+  "kind": "historical_observations",
+  "new_campaigns_run": false,
+  "raw_data_modified": false,
+  "historical_code_available_in_public_history": false,
+  "files": [
+    {
+      "file": "concolic-campaign-contribution/raw-collect.txt",
+      "sha256": "542a4c237fd3f5cd4ccbca790147578244424bc4fbea20a6da2e54174529878f",
+      "bytes": 20117
+    },
+    {
+      "file": "concolic-campaign-contribution/raw-analysis.txt",
+      "sha256": "e49486b20fd647688d455b08c22dbf960ea4df1d9cbbb9d744493dfaeb8594ac",
+      "bytes": 4397
+    },
+    {
+      "file": "instrumentation-cost/raw-instrumentation-cost-n5.txt",
+      "sha256": "a1b1e57c5368700d2aeebf13a19570952400e22e5409734ca8e1e789e60b4194",
+      "bytes": 10324
+    },
+    {
+      "file": "mutator-unsaturated-ceiling/raw/raw-calibration-p2-multibyte-wide.txt",
+      "sha256": "7ae68d49282e86fce4c7ddd7dbcd8c2453a0bae360df2654887ac8bf2b85a8fe",
+      "bytes": 5211
+    }
+  ]
+}

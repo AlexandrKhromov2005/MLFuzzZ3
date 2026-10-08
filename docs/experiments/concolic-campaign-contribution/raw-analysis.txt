@@ -1,0 +1,38 @@
+# Разбор сырья concolic-campaign-contribution (фаза разбора; кампании не перезапускаются). Не редактировать руками.
+# Команда: python3 docs/experiments/concolic-campaign-contribution/collect.py --phase analyze --raw docs/experiments/concolic-campaign-contribution/raw-collect.txt --work <scratch> --n 10 --execs 3000 --headline "рука срабатывала в каждом повторе, но покрытия кампании не добавила: ни один её вызов не дал кандидата, 68 из 73 упёрлись в таймаут решателя" > <сырьё> 2>&1
+CCC channel_consumer_count grep_lines_outside_transport=3 of_them_comments=2 real_call_sites=1 sites=src/core/campaign.cpp:181
+CCC analyze src=docs/experiments/concolic-campaign-contribution/raw-collect.txt runs_parsed=20 channel_consumers=1
+CCC series arm=armed cells=19640;19617;19665;19612;19662;19655;19647;19619;19629;19650
+CCC series arm=off cells=19658;19642;19639;19652;19645;19652;19635;19634;19647;19618
+CCC series arm=armed execs=3000;3000;3000;3000;3000;3000;3000;3000;3000;3000
+CCC series arm=off execs=3000;3000;3000;3000;3000;3000;3000;3000;3000;3000
+CCC series arm=armed concolic_calls=5;10;7;11;5;5;4;10;11;5
+CCC series arm=off concolic_calls=0;0;0;0;0;0;0;0;0;0
+CCC series arm=armed havoc_execs=2995;2990;2993;2989;2995;2995;2996;2990;2989;2995
+CCC series arm=off havoc_execs=3000;3000;3000;3000;3000;3000;3000;3000;3000;3000
+CCC budget_equality per_repeat=r1:3000=3000:eq;r2:3000=3000:eq;r3:3000=3000:eq;r4:3000=3000:eq;r5:3000=3000:eq;r6:3000=3000:eq;r7:3000=3000:eq;r8:3000=3000:eq;r9:3000=3000:eq;r10:3000=3000:eq all_equal=yes target_budget=3000
+CCC havoc_divergence armed_minus_off=-5;-10;-7;-11;-5;-5;-4;-10;-11;-5 median=-5.0
+CCC arm_fired armed_all_positive=yes off_all_zero=yes armed_min=4 armed_max=11
+CCC detail arm=armed concolic_no_candidate=1;0;0;0;1;1;0;2;0;0
+CCC detail arm=armed concolic_no_binding=1;0;0;0;1;1;0;2;0;0
+CCC detail arm=armed concolic_unsat=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=armed concolic_timeout=4;10;7;11;4;4;4;8;11;5
+CCC detail arm=armed concolic_error=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=armed concolic_budget_skips=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=armed concolic_candidates=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=armed concolic_edges=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=armed concolic_crashes=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_no_candidate=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_no_binding=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_unsat=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_timeout=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_error=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_budget_skips=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_candidates=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_edges=0;0;0;0;0;0;0;0;0;0
+CCC detail arm=off concolic_crashes=0;0;0;0;0;0;0;0;0;0
+CCC stat pair=armed_vs_off u=48.5 p_raw=0.939697719 p_holm=0.939697719 alpha=0.05 significant=no a12=0.485 n_x=10 n_y=10 (разборщики scripts/stats/mannwhitney.py и scripts/stats/a12.py)
+CCC medians cells_armed=19647 cells_off=19645 delta_cells=+2.0
+CCC precondition src=docs/experiments/mutator-unsaturated-ceiling/raw/raw-calibration-p2-multibyte-wide.txt ceiling_reached=22835 edges_total=36802
+CCC headroom cells=20 headroom_armed=0.1399;0.1409;0.1388;0.1411;0.1390;0.1393;0.1396;0.1408;0.1404;0.1395 headroom_off=0.1391;0.1398;0.1400;0.1394;0.1397;0.1394;0.1401;0.1402;0.1396;0.1409 min=0.1388 saturated=no
+VERDICT: CONCOLIC-CAMPAIGN-CONTRIBUTION: target=p2-multibyte-wide-gen_target-seed20260910, n_per_arm=10, budget_equalized_on=executed_inputs, all_equal=yes, concolic_calls_armed=5;10;7;11;5;5;4;10;11;5, concolic_calls_off=0;0;0;0;0;0;0;0;0;0, cells_armed=19647, cells_off=19645, delta_cells=+2.0, headroom_frac=0.1399;0.1409;0.1388;0.1411;0.1390;0.1393;0.1396;0.1408;0.1404;0.1395;0.1391;0.1398;0.1400;0.1394;0.1397;0.1394;0.1401;0.1402;0.1396;0.1409, saturated=no, p_holm=0.939698, a12=0.485, channel_consumers=1, arm_wins=no, new_runs=20, src_modified=0, headline="рука срабатывала в каждом повторе, но покрытия кампании не добавила: ни один её вызов не дал кандидата, 68 из 73 упёрлись в таймаут решателя"
