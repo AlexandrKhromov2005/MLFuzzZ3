@@ -68,6 +68,8 @@ SAT/UNSAT относится к построенной системе огран
 После установки зависимостей:
 
 ```sh
+git clone https://github.com/AlexandrKhromov2005/MLFuzzZ3.git
+cd MLFuzzZ3
 git submodule update --init --recursive
 CC=clang-20 CXX=clang++-20 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j4

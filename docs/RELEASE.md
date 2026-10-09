@@ -20,11 +20,11 @@ git remote remove origin
 git submodule update --init --recursive
 ```
 
-Адрес опубликованного репозитория задаётся отдельно. Для отправки
-основной ветки указывается точная пара ссылок:
+Публичный репозиторий: [AlexandrKhromov2005/MLFuzzZ3](https://github.com/AlexandrKhromov2005/MLFuzzZ3).
+Для отправки основной ветки указывается точная пара ссылок:
 
 ```sh
-git remote add origin <адрес-репозитория>
+git remote add origin https://github.com/AlexandrKhromov2005/MLFuzzZ3.git
 git push origin refs/heads/main:refs/heads/main
 ```
 
