@@ -1,0 +1,98 @@
+{
+  "license": "MIT",
+  "baseline": "186195e",
+  "compiler": "c++ (GCC) 16.1.1 20260515 (Red Hat 16.1.1-2)",
+  "flags": [
+    "-O2",
+    "-std=c++20"
+  ],
+  "iterations_per_sample": 300000,
+  "input_bytes": 32,
+  "rng_seed": 1234,
+  "samples": {
+    "before": [
+      {
+        "wall_seconds": 0.226643,
+        "process_cpu_seconds": 0.22638
+      },
+      {
+        "wall_seconds": 0.23688,
+        "process_cpu_seconds": 0.236521
+      },
+      {
+        "wall_seconds": 0.228107,
+        "process_cpu_seconds": 0.227795
+      },
+      {
+        "wall_seconds": 0.238307,
+        "process_cpu_seconds": 0.237961
+      },
+      {
+        "wall_seconds": 0.2281,
+        "process_cpu_seconds": 0.227825
+      },
+      {
+        "wall_seconds": 0.230518,
+        "process_cpu_seconds": 0.229786
+      },
+      {
+        "wall_seconds": 0.23669,
+        "process_cpu_seconds": 0.236347
+      },
+      {
+        "wall_seconds": 0.231604,
+        "process_cpu_seconds": 0.230873
+      }
+    ],
+    "after": [
+      {
+        "wall_seconds": 0.251129,
+        "process_cpu_seconds": 0.250791
+      },
+      {
+        "wall_seconds": 0.252402,
+        "process_cpu_seconds": 0.252103
+      },
+      {
+        "wall_seconds": 0.246174,
+        "process_cpu_seconds": 0.24587
+      },
+      {
+        "wall_seconds": 0.242131,
+        "process_cpu_seconds": 0.241756
+      },
+      {
+        "wall_seconds": 0.247505,
+        "process_cpu_seconds": 0.247185
+      },
+      {
+        "wall_seconds": 0.248979,
+        "process_cpu_seconds": 0.248659
+      },
+      {
+        "wall_seconds": 0.245752,
+        "process_cpu_seconds": 0.245425
+      },
+      {
+        "wall_seconds": 0.249313,
+        "process_cpu_seconds": 0.248966
+      }
+    ]
+  },
+  "medians": {
+    "before": {
+      "wall_seconds": 0.23106100000000002,
+      "process_cpu_seconds": 0.2303295
+    },
+    "after": {
+      "wall_seconds": 0.24824200000000002,
+      "process_cpu_seconds": 0.24792199999999998
+    }
+  },
+  "checksum": "34305351",
+  "candidate_source_sha256": {
+    "src/mutation/mutators/havoc.cpp": "108d8a22bdc48449ad4a1c29c97b9a765a900bc8bb0293020153a009fb83269a",
+    "src/mutation/mutators/havoc.h": "6e9504ee4e12295b0a79564df557defc4c6416589a0d26a35ca9e91d4cae2fbc"
+  },
+  "wall_ratio": 1.0743569879815287
+}

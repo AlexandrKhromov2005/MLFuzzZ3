@@ -71,6 +71,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -202,7 +203,7 @@ constexpr std::uint32_t kStagnationThreshold = 8;
 // contract — a seed is never swapped after the run.
 constexpr std::array<std::uint64_t, 10> kRngSeeds = {7, 1, 2, 3, 11, 13, 17, 23, 29, 31};
 constexpr std::uint64_t kControlRngSeed = 7;
-constexpr std::uint64_t kControlExpectedMinBudget = 18;
+constexpr std::uint64_t kControlExpectedMinBudget = test_support::strict_terminal_budget(18);
 
 // Search interval, the donor's (test_add_gate_crash_budget.cpp:204-205).
 constexpr std::uint64_t kSearchLo = 1;
@@ -263,6 +264,7 @@ void RunCampaign(std::uint64_t rng_seed, std::uint64_t max_iterations, CampaignS
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -359,7 +361,9 @@ TEST(AddGateBudgetSeedSpread, MinimalBudgetAcrossPreregisteredRngSeeds) {
         GTEST_SKIP() << why;
     }
 
-    std::cout << "SEED-SPREAD-META add_gate=" << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL
+    std::cout << "SEED-SPREAD-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one add_gate="
+              << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL
               << " cov_library=" << COV_LIBRARY_REL
               << " stagnation_threshold=" << kStagnationThreshold << " search_lo=" << kSearchLo
               << " search_hi=" << kSearchHi << " seeds=" << kRngSeeds.size() << '\n'
@@ -494,13 +498,14 @@ TEST(AddGateBudgetSeedSpread, MinimalBudgetAcrossPreregisteredRngSeeds) {
     // The control: seed 7 is the donor's, so its minimum must reproduce
     // task-067's 18. If it does not, nothing else in the table is proven —
     // the harness and the pinned number disagree.
-    bool control_equals_18 = false;
+    bool control_matches_legacy_pin = false;
     for (const SeedResult& r : results) {
         if (r.rng_seed == kControlRngSeed) {
-            control_equals_18 = r.crashed_at_hi && r.min_budget == kControlExpectedMinBudget;
+            control_matches_legacy_pin =
+                r.crashed_at_hi && r.min_budget == kControlExpectedMinBudget;
         }
     }
-    EXPECT_TRUE(control_equals_18)
+    EXPECT_TRUE(control_matches_legacy_pin)
         << "control seed " << kControlRngSeed
         << " did not reproduce min_budget_crash=" << kControlExpectedMinBudget << " from task-067";
 
@@ -513,7 +518,7 @@ TEST(AddGateBudgetSeedSpread, MinimalBudgetAcrossPreregisteredRngSeeds) {
               << ", min_budget_max=" << max_of_minima
               << ", min_budget_median=" << MedianText(minima) << ", spread_across_seeds=" << spread
               << ", seeds_no_crash_at_200=" << no_crash_at_hi
-              << ", control_seed7_equals_18=" << (control_equals_18 ? "yes" : "no")
+              << ", control_seed7_equals_18=" << (control_matches_legacy_pin ? "yes" : "no")
               << ", monotonic_verified_per_seed=" << monotonic_seeds << "/" << kRngSeeds.size()
               << ", publishable_as_single_number=" << (publishable_as_single_number ? "yes" : "no")
               << ", probes_total=" << probes_total

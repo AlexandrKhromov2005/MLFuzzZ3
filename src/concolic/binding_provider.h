@@ -21,6 +21,10 @@
 
 namespace mlfuzzz3::concolic {
 
+// Concrete comparison semantics shared by reconstruction and cheap I2S.
+[[nodiscard]] bool evaluate_comparison(std::uint8_t predicate, std::uint64_t lhs, std::uint64_t rhs,
+                                       unsigned bit_width);
+
 /// Способ привязать операнды записей сравнения к полям входа.
 class BindingProvider {
    public:

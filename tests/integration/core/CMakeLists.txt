@@ -59,3 +59,8 @@ target_compile_definitions(test_campaign_e2e
 
 gtest_discover_tests(test_campaign_e2e
     PROPERTIES TIMEOUT 90)
+
+target_link_libraries(test_campaign_e2e PRIVATE yaml-cpp::yaml-cpp)
+target_compile_definitions(test_campaign_e2e PRIVATE
+  COMPOSITION_HAS_I2S=$<BOOL:${FUZZER_ENABLE_I2S}>
+  COMPOSITION_HAS_SMT=$<BOOL:${FUZZER_ENABLE_SMT}>)

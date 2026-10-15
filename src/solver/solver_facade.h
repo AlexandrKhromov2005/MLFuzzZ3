@@ -15,6 +15,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 namespace mlfuzzz3::solver {
@@ -59,6 +60,13 @@ struct SolveResult {
     std::vector<std::uint64_t> model_values;
 };
 
+/// Optional cooperative cancellation and remaining wall-time for campaign calls.
+/// Empty callbacks preserve offline solver behavior.
+struct SolverControl {
+    std::function<bool()> cancelled = nullptr;
+    std::function<unsigned()> remaining_timeout = nullptr;
+};
+
 /// Solve `{ path[i] : i != target_index } ∧ ¬path[target_index]` over
 /// `num_vars` bit-vector variables and return a satisfying value for each
 /// variable — input field values that keep every non-target comparison on
@@ -77,6 +85,7 @@ struct SolveResult {
 ///
 /// NOLINTNEXTLINE(bugprone-easily-swappable-parameters): order fixed by ADR 0035 §1.
 SolveResult SolveInverted(std::size_t num_vars, const std::vector<Constraint>& path,
-                          std::size_t target_index, unsigned timeout_ms);
+                          std::size_t target_index, unsigned timeout_ms,
+                          const SolverControl& control = {});
 
 }  // namespace mlfuzzz3::solver

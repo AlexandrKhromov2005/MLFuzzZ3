@@ -1,0 +1,221 @@
+{
+  "license": "MIT",
+  "baseline": "186195e",
+  "build_type": "Debug",
+  "compile_flags": [
+    "-DMLFUZZZ3_WITH_I2S",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/src/composition",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/include",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/src/core",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/src/mutation",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/src/ipc",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/src/coverage",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/tl-expected-src/include",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-modularity/build/src/ipc/generated",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/protobuf-src/src",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/absl-src",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/protobuf-src/third_party/utf8_range",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/googletest-src/googletest/include",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/googletest-src/googletest",
+    "-g",
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Werror",
+    "-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE",
+    "-DSPDLOG_COMPILED_LIB",
+    "-DYAML_CPP_STATIC_DEFINE",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/include",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/src/core",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/src/mutation",
+    "-I/home/alex/projects/MLFuzzZ3-modularity/src/common",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/tl-expected-src/include",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/spdlog-src/include",
+    "-isystem",
+    "/home/alex/projects/MLFuzzZ3-night/build/_deps/yaml-cpp-src/include",
+    "-g",
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Werror"
+  ],
+  "iterations_per_sample": 100000,
+  "input_bytes": 32,
+  "rng_seed": 1234,
+  "execution_backend": "in-memory OK, no edges or comparisons",
+  "checksum": "11416723",
+  "samples": {
+    "before": [
+      {
+        "wall_seconds": 0.528448,
+        "process_cpu_seconds": 0.527651,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.528151,
+        "process_cpu_seconds": 0.527582,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.532765,
+        "process_cpu_seconds": 0.532266,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.529684,
+        "process_cpu_seconds": 0.529091,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.528643,
+        "process_cpu_seconds": 0.528127,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.531403,
+        "process_cpu_seconds": 0.530834,
+        "journal_bytes": 0
+      }
+    ],
+    "after": [
+      {
+        "wall_seconds": 0.819118,
+        "process_cpu_seconds": 0.81834,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.81965,
+        "process_cpu_seconds": 0.818996,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.818425,
+        "process_cpu_seconds": 0.817629,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.821717,
+        "process_cpu_seconds": 0.821047,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.816564,
+        "process_cpu_seconds": 0.815796,
+        "journal_bytes": 0
+      },
+      {
+        "wall_seconds": 0.81944,
+        "process_cpu_seconds": 0.818702,
+        "journal_bytes": 0
+      }
+    ],
+    "journal": [
+      {
+        "wall_seconds": 0.957975,
+        "process_cpu_seconds": 0.956959,
+        "journal_bytes": 50397713
+      },
+      {
+        "wall_seconds": 0.954193,
+        "process_cpu_seconds": 0.953395,
+        "journal_bytes": 50395494
+      },
+      {
+        "wall_seconds": 0.955463,
+        "process_cpu_seconds": 0.954535,
+        "journal_bytes": 50397321
+      },
+      {
+        "wall_seconds": 0.951119,
+        "process_cpu_seconds": 0.950208,
+        "journal_bytes": 50396270
+      },
+      {
+        "wall_seconds": 0.956972,
+        "process_cpu_seconds": 0.956033,
+        "journal_bytes": 50399094
+      },
+      {
+        "wall_seconds": 0.952377,
+        "process_cpu_seconds": 0.951541,
+        "journal_bytes": 50395380
+      }
+    ]
+  },
+  "medians": {
+    "before": {
+      "wall_seconds": 0.5291635,
+      "process_cpu_seconds": 0.528609,
+      "journal_bytes": 0.0
+    },
+    "after": {
+      "wall_seconds": 0.819279,
+      "process_cpu_seconds": 0.818521,
+      "journal_bytes": 0.0
+    },
+    "journal": {
+      "wall_seconds": 0.954828,
+      "process_cpu_seconds": 0.953965,
+      "journal_bytes": 50396795.5
+    }
+  },
+  "candidate_source_sha256": {
+    "src/composition/artifacts.cpp": "dc131ee03158d6ae824bfb3a52bd92ea09c9c1da82e1d2fdaeeac40dfdf35325",
+    "src/composition/artifacts.h": "84b502b3442550d073a53e89eb6867d0ede421c3c1127645dd10f8a7b09d56ac",
+    "src/composition/campaign_factory.cpp": "1050fd5bdb195dda0d94829fafcee830c9ac6c4bfddf38b43355e98115e79a2d",
+    "src/composition/campaign_factory.h": "fc755703f8a10a55c8ba9a315a8e13eba0540d9fc481b2bf655949b08b335a69",
+    "src/composition/components.cpp": "b64548f4ba10ad7d884303113968b3904778278e3f9eaa86463ec1ad5c5f6d96",
+    "src/composition/components.h": "3096c72d050f3556ee3d85617af75f442aec65da5f9db2d2ee7fcd31964271a1",
+    "src/composition/composition_config.cpp": "8c5620c0d8a3bdad9d33f89149152602a3bc757f3c230ddfb973bf4215fc7bba",
+    "src/composition/composition_config.h": "d4c074736b9c88449523bfe3834a07acfc3e27be328c2dcef8f7ba02cf8aa97c",
+    "src/composition/execution_adapter.cpp": "90b1322de5e5a9f936903d92975c0f0c396b962b6a9a63eddf6a3686dd4b958b",
+    "src/composition/execution_adapter.h": "799f4366d0808c077205538ed0e6d72538fdcf37decd2c4c921d856ecbbc0c71",
+    "src/composition/i2s_stage.cpp": "c5655d47da0b1fd745bae02dd7c29068300a0c95dc67957812ea42f235f2cd85",
+    "src/composition/i2s_stage.h": "5c39b3c3a1e384ef438147fec8d698a07bf634419727689f8b47010d2ae6f8ff",
+    "src/composition/solver_stage.cpp": "f9187841e9d49dc858f2fea36e8467915d63db5ac0ba396930bb67bd64871c51",
+    "src/composition/solver_stage.h": "ebbfa18a4789062e72edab1b9b4fcfabe1097ba0564e0683c508b8b29ad1871f",
+    "src/core/campaign.cpp": "747b089ee040a11bbd0534cb8ea06c3e25352c6f44e50de62028af72935d7c43",
+    "src/core/campaign.h": "bf863541d9285e17e5257b257d20c2b91735a1f6c7a5490230a57bd27fac0a73",
+    "src/core/campaign_types.h": "8a2d37b89dcec6a7eaf51b577b833e4353f738a467a5ba633ad716420d06e828",
+    "src/core/corpus.cpp": "555e4ff2367230ef1a78c9d8f1e24e8f6c91ed529de3e9f0e332aeb5dd22de97",
+    "src/core/corpus.h": "c702afb29760878de52834d8efdac0e42e199495e2d28d9612f0125c97a5e8c8",
+    "src/core/corpus_view.h": "6572a3de5029169c67f99d4c3e3b309023b4659140fe19e45427dd66ec51ecfd",
+    "src/core/execution.cpp": "8a31f05544114568a63f91046d35dfa92c75865a96adc779908804380f0599ba",
+    "src/core/execution.h": "a7aa6bd740941ec81bbca82e06dcf6b94058b110b2a6bcb25db1cdec236f13a6",
+    "src/core/fnv.h": "974248f6b97ba0268cd954c34b8d9d915524422e687abb2ea852c287637c3b52",
+    "src/core/hybrid_strategy.cpp": "9a2a661798d29a0c6c1aa888c193c043a10e926a1f6584e50866b14780e2daab",
+    "src/core/hybrid_strategy.h": "f82fe8b92c902c9a0c09b6dca2e8123ee128be5efa6d60216835cbefb0bb1bc1",
+    "src/core/metrics.cpp": "a98cdc4803d4866a5ab73483f1c2bf75b3b6f2eaf33a07a340935f62d31c1d62",
+    "src/core/metrics.h": "bdf22bf0587b6e66f5ceb46f8f230a5d60ea8cb2b90dce6a41307d2ddee2e394",
+    "src/core/runner.cpp": "389cc8c8ae62b73e8547ba889aa8c8777e1eb7cbabbdfd1b5648358310e7edb4",
+    "src/core/runner.h": "6908124066b1620bd8dd2998d47f8415644f1a2f064b9bec359dca0e17cd4742",
+    "src/core/seed_scheduler.h": "06898739a27745ded537586188a08e4b51923137882c267be0abeb607f80e169",
+    "src/core/stage.h": "745c3e687e1e1a5fa07f49bffaa1e3a2656f8d2d643a183533259f603618bcaf",
+    "src/core/strategy.cpp": "7b8f6a8d9f3b81f066c1ab8485fed397da96832ebc9ca25d8da17f54cda6192f",
+    "src/core/strategy.h": "1b9b759ac68ba652bf259fa423fe9c28e35987fae56c94f4afd3219b1c014b16",
+    "src/mutation/deterministic_stage.cpp": "cf93da09eb5624903b19fa063b5465ae2343b63f22b9bf8dec94101938b582a1",
+    "src/mutation/deterministic_stage.h": "671e701f992eec84ea164d7ba615ce674ec4f0b19f73c7e317599b38166bd288",
+    "src/mutation/fuzz_input.h": "c001051e684630b52ddc824afd5666e653e1cb1f69a0ea8752d5d1b92c1e1513",
+    "src/mutation/mutator.h": "0e1736b77eb071eece414790c47361dfba93c70b20180131b501ff85e5512ece",
+    "src/mutation/mutators/bit_flip.cpp": "1e3143c4f5f3a110e160e3b6bba15be0fd260fa95e2d2bef11a90ded0112c924",
+    "src/mutation/mutators/bit_flip.h": "a0108310245fa35486724cb18e05976306846d41167ed466da8e2bae86301819",
+    "src/mutation/mutators/byte_flip.cpp": "0358403039ee13000718bad8bd9d6814117c3a00828dbdb4e63045fb490ee59b",
+    "src/mutation/mutators/byte_flip.h": "589a341aa6afbd703337bea1ace42fa1d1d093be5b24e3ed364c49d05accb0da",
+    "src/mutation/mutators/havoc.cpp": "108d8a22bdc48449ad4a1c29c97b9a765a900bc8bb0293020153a009fb83269a",
+    "src/mutation/mutators/havoc.h": "6e9504ee4e12295b0a79564df557defc4c6416589a0d26a35ca9e91d4cae2fbc",
+    "src/mutation/ops.cpp": "d6d2e917a4f279c64194065507699ce4aec10c9045fd386d249f681b04a0e03a",
+    "src/mutation/ops.h": "7d9c32e27718ed8340f3cde66dae310a303589a76c72f2e947b80817a62c2f28",
+    "src/mutation/rng.h": "588848fc3d52082407193939231adef7ca684577abbf2cff44ba89fef7e1e2ca"
+  }
+}

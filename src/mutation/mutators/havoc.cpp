@@ -4,7 +4,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <set>
 #include <span>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -163,76 +165,56 @@ void DeleteBlock(std::vector<std::uint8_t>& buf, std::mt19937_64& rng) {
 
 // Operation menu (ADR 0030). Order is fixed: changing it is a breaking
 // change for replay reproducibility.
-enum class Op : std::size_t {
-    kFlip1,
-    kFlip2,
-    kFlip4,
-    kByte,
-    kArith8,
-    kArith16,
-    kArith32,
-    kInteresting8,
-    kInteresting16,
-    kInteresting32,
-    kInsert,
-    kDuplicate,
-    kDelete,
-    kCount,
-};
-
-constexpr std::size_t kFlip2Width = 2;
-constexpr std::size_t kFlip4Width = 4;
-
-void ApplyOp(std::vector<std::uint8_t>& buf, std::mt19937_64& rng) {
-    const auto op = static_cast<Op>(rng_next_index(rng, static_cast<std::size_t>(Op::kCount)));
-    switch (op) {
-        case Op::kFlip1:
-            FlipBits(buf, rng, 1);
-            break;
-        case Op::kFlip2:
-            FlipBits(buf, rng, kFlip2Width);
-            break;
-        case Op::kFlip4:
-            FlipBits(buf, rng, kFlip4Width);
-            break;
-        case Op::kByte:
-            SetByte(buf, rng);
-            break;
-        case Op::kArith8:
-            Arith(buf, rng, Width::k8);
-            break;
-        case Op::kArith16:
-            Arith(buf, rng, Width::k16);
-            break;
-        case Op::kArith32:
-            Arith(buf, rng, Width::k32);
-            break;
-        case Op::kInteresting8:
-            SetInteresting(buf, rng, Width::k8, kInteresting8);
-            break;
-        case Op::kInteresting16:
-            SetInteresting(buf, rng, Width::k16, kInteresting16);
-            break;
-        case Op::kInteresting32:
-            SetInteresting(buf, rng, Width::k32, kInteresting32);
-            break;
-        case Op::kInsert:
-            InsertBlock(buf, rng);
-            break;
-        case Op::kDuplicate:
-            DuplicateBlock(buf, rng);
-            break;
-        case Op::kDelete:
-            DeleteBlock(buf, rng);
-            break;
-        case Op::kCount:
-        default:
-            break;
-    }
-}
-
 }  // namespace
 
+std::size_t UniformOperatorSelector::choose(std::span<const MutationOperator> operators,
+                                            std::mt19937_64& rng) const {
+    return rng_next_index(rng, operators.size());
+}
+std::size_t LegacyStacking::count(std::mt19937_64& rng) const {
+    return std::size_t{1} << rng_next_index(rng, kStackPow2 + 1);
+}
+std::vector<MutationOperator> legacy_havoc_operators() {
+    return {
+        {.name = "flip1", .apply = [](auto& bytes, auto& rng) { FlipBits(bytes, rng, 1); }},
+        {.name = "flip2", .apply = [](auto& bytes, auto& rng) { FlipBits(bytes, rng, 2); }},
+        {.name = "flip4", .apply = [](auto& bytes, auto& rng) { FlipBits(bytes, rng, 4); }},
+        {.name = "byte", .apply = SetByte},
+        {.name = "arith8", .apply = [](auto& bytes, auto& rng) { Arith(bytes, rng, Width::k8); }},
+        {.name = "arith16", .apply = [](auto& bytes, auto& rng) { Arith(bytes, rng, Width::k16); }},
+        {.name = "arith32", .apply = [](auto& bytes, auto& rng) { Arith(bytes, rng, Width::k32); }},
+        {.name = "interesting8",
+         .apply = [](auto& bytes,
+                     auto& rng) { SetInteresting(bytes, rng, Width::k8, kInteresting8); }},
+        {.name = "interesting16",
+         .apply = [](auto& bytes,
+                     auto& rng) { SetInteresting(bytes, rng, Width::k16, kInteresting16); }},
+        {.name = "interesting32",
+         .apply = [](auto& bytes,
+                     auto& rng) { SetInteresting(bytes, rng, Width::k32, kInteresting32); }},
+        {.name = "insert", .apply = InsertBlock},
+        {.name = "duplicate", .apply = DuplicateBlock},
+        {.name = "delete", .apply = DeleteBlock}};
+}
+HavocMutator::HavocMutator()
+    : HavocMutator(legacy_havoc_operators(), std::make_unique<UniformOperatorSelector>(),
+                   std::make_unique<LegacyStacking>()) {}
+HavocMutator::HavocMutator(std::vector<MutationOperator> operators,
+                           std::unique_ptr<OperatorSelector> selector,
+                           std::unique_ptr<StackingPolicy> stacking)
+    : operators_(std::move(operators)),
+      selector_(std::move(selector)),
+      stacking_(std::move(stacking)) {
+    if (operators_.empty() || !selector_ || !stacking_) {
+        throw std::invalid_argument("incomplete havoc composition");
+    }
+    std::set<std::string> names;
+    for (const auto& op : operators_) {
+        if (op.name.empty() || !op.apply || !names.insert(op.name).second) {
+            throw std::invalid_argument("invalid havoc operator");
+        }
+    }
+}
 FuzzInput HavocMutator::mutate(const FuzzInput& input, std::mt19937_64& rng) const {
     if (input.size() == 0) {
         return FuzzInput{};
@@ -240,9 +222,17 @@ FuzzInput HavocMutator::mutate(const FuzzInput& input, std::mt19937_64& rng) con
     const std::span<const std::uint8_t> in{input.data(), input.size()};
     std::vector<std::uint8_t> buf(in.begin(), in.end());
 
-    const std::size_t stack = std::size_t{1} << rng_next_index(rng, kStackPow2 + 1);
+    const std::size_t stack = stacking_->count(rng);
+    constexpr std::size_t kMaxStack = std::size_t{1} << kStackPow2;
+    if (stack == 0 || stack > kMaxStack) {
+        throw std::logic_error("invalid havoc stack budget");
+    }
     for (std::size_t i = 0; i < stack; ++i) {
-        ApplyOp(buf, rng);
+        const auto selected = selector_->choose(operators_, rng);
+        operators_.at(selected).apply(buf, rng);
+        if (buf.empty() || (input.size() <= kHavocMaxLen && buf.size() > kHavocMaxLen)) {
+            throw std::logic_error("havoc operator violated size bounds");
+        }
     }
     return FuzzInput{std::move(buf)};
 }

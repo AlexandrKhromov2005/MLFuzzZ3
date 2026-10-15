@@ -1,14 +1,38 @@
 #include "args.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace mlfuzzz3::cli {
 
 namespace {
+
+// String options share value handling, keeping component selection extensible.
+std::string Args::* StringFlagField(std::string_view flag) {
+    const std::array<std::pair<std::string_view, std::string Args::*>, 10> flags = {{
+        {"--config", &Args::config_path},
+        {"--profile", &Args::profile},
+        {"--exec-server", &Args::exec_server},
+        {"--target", &Args::target},
+        {"--cov-library", &Args::cov_library},
+        {"--out-dir", &Args::out_dir},
+        {"--seed-dir", &Args::seed_dir},
+        {"--seed-scheduler", &Args::seed_scheduler},
+        {"--mutator", &Args::mutator},
+        {"--target-args", &Args::target_args},
+    }};
+    for (const auto& [name, field] : flags) {
+        if (flag == name) {
+            return field;
+        }
+    }
+    return nullptr;
+}
 
 // Булевы флаги-включатели: починки ADR 0049 и --run-seeds-first. Таблица
 // вместо цепочки веток — см. комментарий на месте вызова.
@@ -64,22 +88,13 @@ Args ParseArgs(std::span<const char* const> argv_view) {
     Args args;
     for (std::size_t i = 1; i < argv_view.size(); ++i) {
         const std::string a = argv_view[i];
+        args.explicit_flags.insert(a);
         if (a == "--help" || a == "-h") {
             args.show_help = true;
         } else if (a == "--version" || a == "-V") {
             args.show_version = true;
-        } else if (a == "--config") {
-            args.config_path = require_value(i, a);
-        } else if (a == "--exec-server") {
-            args.exec_server = require_value(i, a);
-        } else if (a == "--target") {
-            args.target = require_value(i, a);
-        } else if (a == "--cov-library") {
-            args.cov_library = require_value(i, a);
-        } else if (a == "--out-dir") {
-            args.out_dir = require_value(i, a);
-        } else if (a == "--seed-dir") {
-            args.seed_dir = require_value(i, a);
+        } else if (const auto field = StringFlagField(a); field != nullptr) {
+            args.*field = require_value(i, a);
         } else if (a == "--max-iterations") {
             args.max_iterations = std::stoull(require_value(i, a));
         } else if (a == "--max-seconds") {
@@ -88,12 +103,8 @@ Args ParseArgs(std::span<const char* const> argv_view) {
             args.metrics_interval = std::stoull(require_value(i, a));
         } else if (a == "--seed") {
             args.seed = std::stoull(require_value(i, a));
-        } else if (a == "--mutator") {
-            args.mutator = require_value(i, a);
         } else if (a == "--max-det-steps") {
             args.max_det_steps = std::stoull(require_value(i, a));
-        } else if (a == "--target-args") {
-            args.target_args = require_value(i, a);
         } else if (a == "--no-concolic") {
             args.concolic_enabled = false;
         } else if (ApplySwitchFlag(a, args)) {
@@ -114,6 +125,7 @@ void PrintUsage(std::ostream& out) {
     out << "Usage: fuzzer [options]\n"
            "\n"
            "Options:\n"
+           "  --profile <name>         legacy|mutation-only|hybrid-heuristic|hybrid-ml.\n"
            "  --config <path>          Path to YAML configuration file.\n"
            "  -h, --help               Print this help text and exit.\n"
            "  -V, --version            Print the fuzzer version and exit.\n"
@@ -127,6 +139,7 @@ void PrintUsage(std::ostream& out) {
            "  --max-iterations <n>     Stop after n executions (0 = unbounded).\n"
            "  --max-seconds <s>        Stop after s seconds (0 = unbounded).\n"
            "  --metrics-interval <n>   Emit a metrics record every n executions.\n"
+           "  --seed-scheduler <name>  random (default) or round-robin.\n"
            "  --seed <n>               RNG seed for replayable runs.\n"
            "  --mutator <name>         Mutation operator: havoc|bitflip|byteflip "
            "(default havoc).\n"
@@ -161,6 +174,57 @@ mlfuzzz3::core::CampaignConfig MakeCampaignConfig(const Args& args) {
         .concolic_fix_addvars = args.concolic_fix_addvars,
         .concolic_fix_writeback_width = args.concolic_fix_writeback_width,
         .concolic_system_form = args.concolic_system_form};
+}
+
+mlfuzzz3::composition::CompositionConfig resolve_composition(const Args& args) {
+    auto config = mlfuzzz3::composition::load_composition(
+        args.config_path, args.explicit_flags.contains("--profile")
+                              ? std::optional<std::string>(args.profile)
+                              : std::nullopt);
+    const auto has = [&args](const auto* flag) { return args.explicit_flags.contains(flag); };
+    if (has("--mutator")) {
+        config.components.mutator = args.mutator;
+    }
+    if (has("--seed-scheduler")) {
+        config.components.seed_scheduler = args.seed_scheduler;
+    }
+    if (has("--seed")) {
+        config.components.seed = args.seed;
+    }
+    if (has("--max-iterations")) {
+        config.campaign.max_iterations = args.max_iterations;
+    }
+    if (has("--max-seconds")) {
+        config.campaign.max_seconds = args.max_seconds;
+    }
+    if (has("--metrics-interval")) {
+        config.campaign.metrics_interval = args.metrics_interval;
+    }
+    if (has("--max-det-steps")) {
+        config.campaign.max_det_steps = args.max_det_steps;
+    }
+    if (has("--run-seeds-first")) {
+        config.campaign.run_seeds_first = args.run_seeds_first;
+    }
+    if (has("--no-concolic")) {
+        std::erase(config.stages, "i2s_smt");
+        config.campaign.concolic_enabled = false;
+    }
+    if (has("--concolic-fix-findfirst-index")) {
+        config.campaign.concolic_fix_findfirst_index = args.concolic_fix_findfirst_index;
+    }
+    if (has("--concolic-fix-addvars")) {
+        config.campaign.concolic_fix_addvars = args.concolic_fix_addvars;
+    }
+    if (has("--concolic-fix-writeback-width")) {
+        config.campaign.concolic_fix_writeback_width = args.concolic_fix_writeback_width;
+    }
+    if (has("--concolic-system-form")) {
+        config.campaign.concolic_system_form = args.concolic_system_form;
+    }
+    config.campaign.rng_seed = config.components.seed;
+    mlfuzzz3::composition::validate_composition(config);
+    return config;
 }
 
 }  // namespace mlfuzzz3::cli

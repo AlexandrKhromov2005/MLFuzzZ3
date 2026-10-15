@@ -144,6 +144,26 @@ class CampaignTest : public ::testing::Test {
     mutation::ByteFlipMutator mutator_;
 };
 
+// Legacy trace: discovering a seed must finish the current deterministic
+// cursor, sweep the appended seed, then consume the untouched havoc RNG.
+TEST_F(CampaignTest, LegacyTracePreservesAdmissionDetFirstAndHavocRng) {
+    RecordingRunner runner({Ok(3)});
+    CampaignConfig cfg = Config(8);
+    cfg.max_det_steps = 2;
+    CampaignLoop loop(runner, mutator_, scheduler_, *corpus_, *metrics_, cfg);
+    const CampaignStats stats = loop.Run();
+    const std::vector<std::vector<std::uint8_t>> expected{{1},  {2},   {0},   {3},
+                                                          {13}, {242}, {242}, {241}};
+    EXPECT_EQ(runner.inputs(), expected);
+    EXPECT_EQ(stats.execs, 8U);
+    EXPECT_EQ(stats.det_execs, 4U);
+    EXPECT_EQ(stats.havoc_execs, 4U);
+    EXPECT_EQ(stats.accepted, 1U);
+    ASSERT_EQ(corpus_->size(), 2U);
+    EXPECT_EQ(corpus_->at(0).det.cursor, 2U);
+    EXPECT_EQ(corpus_->at(1).det.cursor, 2U);
+}
+
 TEST_F(CampaignTest, AcceptsInputsWithNewEdges) {
     ScriptedRunner runner({Ok(3), Ok(0), Ok(5)});
     CampaignLoop loop(runner, mutator_, scheduler_, *corpus_, *metrics_, Config(3));

@@ -28,6 +28,7 @@ TEST(CliArgs, DefaultsWhenNoFlags) {
     const Args args = Parse(argv);
     EXPECT_TRUE(args.target_args.empty());
     EXPECT_EQ(args.mutator, "havoc");
+    EXPECT_EQ(args.seed_scheduler, "random");
     EXPECT_FALSE(args.show_help);
     EXPECT_FALSE(args.show_version);
 }
@@ -188,4 +189,26 @@ TEST(Args, Adr0049SystemFormTakesThreeNamesAndRejectsOthers) {
                 mlfuzzz3::cli::ParseArgs(std::span<const char* const>(missing));
         },
         std::runtime_error);
+}
+
+// Composition selection must consume its value without swallowing following flags.
+TEST(CliArgs, SeedSchedulerSelection) {
+    const std::array<const char*, 5> argv{"fuzzer", "--seed-scheduler", "round-robin", "--seed",
+                                          "9"};
+    const Args args = Parse(argv);
+    EXPECT_EQ(args.seed_scheduler, "round-robin");
+    EXPECT_EQ(args.seed, 9U);
+    const std::array<const char*, 2> missing{"fuzzer", "--seed-scheduler"};
+    EXPECT_THROW(Parse(missing), std::runtime_error);
+}
+
+TEST(CliArgs, ExplicitOptionTrackingDistinguishesDefaults) {
+    const std::array<const char*, 5> argv{"fuzzer", "--profile", "mutation-only", "--seed", "0"};
+    const auto args = Parse(argv);
+    EXPECT_TRUE(args.explicit_flags.contains("--seed"));
+    EXPECT_FALSE(args.explicit_flags.contains("--mutator"));
+    const auto resolved = mlfuzzz3::cli::resolve_composition(args);
+    EXPECT_EQ(resolved.profile, "mutation-only");
+    EXPECT_EQ(resolved.components.seed, 0U);
+    EXPECT_FALSE(resolved.campaign.concolic_enabled);
 }

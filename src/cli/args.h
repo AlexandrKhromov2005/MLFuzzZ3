@@ -3,10 +3,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <ostream>
+#include <set>
 #include <span>
 #include <string>
 
 #include "campaign.h"  // mlfuzzz3::core::kDefaultMaxDetSteps
+#include "composition_config.h"
 
 // Command-line surface of the fuzzer binary, factored out of main.cpp so
 // the parser is unit-testable in isolation (ADR 0040 §Тестирование).
@@ -16,6 +18,8 @@ namespace mlfuzzz3::cli {
 inline constexpr std::uint64_t kDefaultMetricsInterval = 1000;
 
 struct Args {
+    std::set<std::string> explicit_flags;
+    std::string profile;
     std::string config_path;
     bool show_help = false;
     bool show_version = false;
@@ -30,6 +34,7 @@ struct Args {
     double max_seconds = 0.0;          // 0 = unbounded
     std::uint64_t metrics_interval = kDefaultMetricsInterval;
     std::uint64_t seed = 0;
+    std::string seed_scheduler = "random";
     std::string mutator = "havoc";  // havoc | bitflip | byteflip
     // Per-seed deterministic-stage cap (ADR 0031). 0 disables the
     // deterministic stage entirely (0 det-execs, ADR 0032).
@@ -67,6 +72,8 @@ struct Args {
 // where CLI fields reach core::CampaignConfig, so the seam (e.g.
 // --no-concolic -> concolic_enabled) is unit-testable without a campaign.
 [[nodiscard]] mlfuzzz3::core::CampaignConfig MakeCampaignConfig(const Args& args);
+
+[[nodiscard]] mlfuzzz3::composition::CompositionConfig resolve_composition(const Args& args);
 
 // Writes the usage / options text to out.
 void PrintUsage(std::ostream& out);

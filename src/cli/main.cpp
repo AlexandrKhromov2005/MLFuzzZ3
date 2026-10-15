@@ -6,14 +6,16 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
-#include <memory>
 #include <span>
 #include <sstream>
 #include <string>
 #include <utility>
 
 #include "args.h"
+#include "artifacts.h"
 #include "campaign.h"
+#include "campaign_factory.h"
+#include "components.h"
 #include "config.h"
 #include "corpus.h"
 #include "exec_server_process.h"
@@ -21,9 +23,6 @@
 #include "log.h"
 #include "metrics.h"
 #include "mutator.h"
-#include "mutators/bit_flip.h"
-#include "mutators/byte_flip.h"
-#include "mutators/havoc.h"
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
@@ -43,28 +42,16 @@ using mlfuzzz3::cli::Args;
 // fixtures finish instantly; the headroom guards against a slow CI host.
 constexpr std::uint64_t kDefaultRunTimeoutMs = 5000;
 
-std::string MakeRunId(const Args& args) {
+std::string MakeRunId(const Args& args, const mlfuzzz3::composition::CompositionConfig& resolved) {
     const auto timestamp = static_cast<std::uint64_t>(std::time(nullptr));
     const std::string config_str = args.target + "|" + args.cov_library + "|" + args.seed_dir +
                                    "|" + std::to_string(args.seed) + "|" +
-                                   std::to_string(args.max_iterations);
+                                   std::to_string(args.max_iterations) + "|" +
+                                   mlfuzzz3::composition::resolved_yaml(resolved);
     const std::uint64_t config_hash = mlfuzzz3::core::FnvHash(config_str);
     std::ostringstream run_id;
     run_id << timestamp << "-" << MLFUZZZ3_GIT_SHA << "-" << std::hex << config_hash;
     return run_id.str();
-}
-
-std::unique_ptr<mlfuzzz3::mutation::Mutator> MakeMutator(const std::string& name) {
-    if (name == "havoc") {
-        return std::make_unique<mlfuzzz3::mutation::HavocMutator>();
-    }
-    if (name == "bitflip") {
-        return std::make_unique<mlfuzzz3::mutation::BitFlipMutator>();
-    }
-    if (name == "byteflip") {
-        return std::make_unique<mlfuzzz3::mutation::ByteFlipMutator>();
-    }
-    throw std::runtime_error("unknown --mutator: " + name + " (expected havoc|bitflip|byteflip)");
 }
 
 int RunCampaign(const Args& args) {
@@ -73,8 +60,9 @@ int RunCampaign(const Args& args) {
         return 2;
     }
 
-    // Built before spawning so an unknown --mutator fails fast.
-    const std::unique_ptr<mlfuzzz3::mutation::Mutator> mutator = MakeMutator(args.mutator);
+    // Validate component names before spawning the execution server.
+    const auto resolved = mlfuzzz3::cli::resolve_composition(args);
+    const auto components = mlfuzzz3::composition::Registry{}.Build(resolved.components);
 
     auto proc = mlfuzzz3::cli::ExecServerProcess::Spawn(
         args.exec_server, args.target, args.cov_library, args.target_args, kDefaultRunTimeoutMs);
@@ -109,18 +97,27 @@ int RunCampaign(const Args& args) {
 
     const std::filesystem::path metrics_path =
         std::filesystem::path(args.out_dir) / "metrics.jsonl";
-    auto metrics = mlfuzzz3::core::MetricsEmitter::Create(metrics_path, MakeRunId(args));
+    auto metrics = mlfuzzz3::core::MetricsEmitter::Create(metrics_path, MakeRunId(args, resolved));
     if (!metrics) {
         LOG_ERROR("failed to open metrics file {}", metrics_path.string());
         return 1;
     }
 
-    mlfuzzz3::core::RandomScheduler scheduler(args.seed);
     mlfuzzz3::core::SessionRunner runner(*session);
-    const mlfuzzz3::core::CampaignConfig cfg = mlfuzzz3::cli::MakeCampaignConfig(args);
-    mlfuzzz3::core::CampaignLoop loop(runner, *mutator, scheduler, *corpus, *metrics, cfg);
+    auto parts = mlfuzzz3::composition::make_campaign(runner, *components.mutator,
+                                                      *components.seed_scheduler, resolved);
+    parts.events = mlfuzzz3::composition::write_artifacts(args.out_dir, resolved,
+                                                          {.revision = MLFUZZZ3_GIT_SHA,
+                                                           .run_id = metrics->run_id(),
+                                                           .target = args.target,
+                                                           .target_args = args.target_args,
+                                                           .coverage_library = args.cov_library,
+                                                           .seed_directory = args.seed_dir},
+                                                          parts.backend->capabilities());
+    mlfuzzz3::core::CampaignLoop loop(std::move(parts), *corpus, *metrics, resolved.campaign);
 
-    LOG_INFO("campaign starting (run_id={}, mutator={})", metrics->run_id(), mutator->name());
+    LOG_INFO("campaign starting (run_id={}, mutator={}, seed_scheduler={})", metrics->run_id(),
+             components.mutator->name(), components.seed_scheduler->name());
     const mlfuzzz3::core::CampaignStats stats = loop.Run();
     LOG_INFO(
         "campaign done: execs={} accepted={} edges={} crashes={} hangs={} ipc_errors={} "

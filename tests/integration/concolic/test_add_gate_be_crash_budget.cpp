@@ -74,6 +74,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -209,7 +210,7 @@ constexpr std::uint64_t kSearchHi = 200;
 // The published little-endian number this stand must reproduce on seed 7
 // (docs/experiments/solver-add-gate-crash-budget/report.md:10). It is an
 // expectation about the STAND, not about the BE fixture.
-constexpr std::uint64_t kControlLeExpected = 18;
+constexpr std::uint64_t kControlLeExpected = test_support::strict_terminal_budget(18);
 
 // Hard wall-time budget for the whole unit, named in the report before the
 // run. Checked before every probe; when it is spent the sweep stops where it
@@ -273,6 +274,7 @@ void RunCampaign(const char* fixture_bin, const char* seed_name, const char* met
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -394,7 +396,9 @@ TEST(AddGateBeCrashBudget, MinimalBudgetThatStillReachesTheCrashBigEndian) {
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count();
     };
 
-    std::cout << "BUDGET-META add_gate_be=" << ADD_GATE_BE_REL << " add_gate=" << ADD_GATE_REL
+    std::cout << "BUDGET-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one add_gate_be="
+              << ADD_GATE_BE_REL << " add_gate=" << ADD_GATE_REL
               << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
               << " encoding=u32be fields_offsets=0|4 rng_seed=" << kRngSeed
               << " arm_seed=donor stagnation_threshold=" << kStagnationThreshold
@@ -433,7 +437,7 @@ TEST(AddGateBeCrashBudget, MinimalBudgetThatStillReachesTheCrashBigEndian) {
     }
     const bool control_le_ok = control_le_searched && control_le_min == kControlLeExpected;
     EXPECT_TRUE(control_le_ok) << "little-endian control returned " << control_le_min
-                               << " instead of the published " << kControlLeExpected
+                               << " instead of expected strict budget " << kControlLeExpected
                                << "; every big-endian line in this run is undproven";
 
     // --- Entry ticket for the fixture under test: the upper bound of the

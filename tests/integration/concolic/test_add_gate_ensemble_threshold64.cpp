@@ -111,6 +111,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -491,6 +492,7 @@ void RunCampaign(std::uint64_t rng_seed, std::uint64_t max_iterations, CampaignS
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -820,8 +822,9 @@ void PrintSourcePins() {
 // The header of the raw log: what was fixed before the first probe ran.
 void PrintMeta() {
     std::cout
-        << "ENSEMBLE64-META gate=add_gate add_gate=" << ADD_GATE_REL
-        << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
+        << "ENSEMBLE64-META budget_units=strict_execs historical_controls=legacy_requested "
+           "terminal_control_adjustment=plus_one gate=add_gate add_gate="
+        << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
         << " threshold=" << kProductionThreshold
         << " threshold_source=src/core/campaign.h:58 arm_seed=donor"
         << " search_lo=" << kSearchLo << " search_hi=" << kSearchHi << " seeds=" << kEnsemble.size()
@@ -976,10 +979,12 @@ TEST(AddGateEnsembleThreshold64, EnsembleOfTenSeedsAtTheProductionStagnationThre
     for (const ControlSource& c : kControls) {
         const SeedResult* r = find(c.rng_seed);
         ASSERT_NE(r, nullptr);
-        const bool holds = r->crash_search_complete && r->min_budget == c.expected_t64;
+        const bool holds = r->crash_search_complete &&
+                           r->min_budget == test_support::strict_terminal_budget(c.expected_t64);
         controls_match = controls_match && holds;
         std::cout << "ENSEMBLE64-CONTROL rng_seed=" << c.rng_seed
-                  << " expected_min_budget=" << c.expected_t64 << " measured_min_budget="
+                  << " expected_min_budget=" << test_support::strict_terminal_budget(c.expected_t64)
+                  << " measured_min_budget="
                   << (r->crash_search_complete ? std::to_string(r->min_budget)
                                                : std::string("none"))
                   << " matches=" << (holds ? "yes" : "no") << " pin=" << kControlPin << ':'

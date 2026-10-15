@@ -49,3 +49,4 @@ target_link_libraries(test_deterministic_stage
 )
 
 gtest_discover_tests(test_deterministic_stage)
+target_sources(test_havoc PRIVATE ../../regression/test_havoc_legacy_trace.cpp)

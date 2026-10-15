@@ -88,6 +88,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -225,7 +226,7 @@ constexpr std::array<std::uint32_t, 6> kThresholds = {1, 2, 4, 8, 16, 32};
 constexpr std::uint32_t kPredictionThreshold = 24;
 
 constexpr std::uint32_t kControlThreshold = 8;
-constexpr std::uint64_t kControlExpectedMinBudget = 18;
+constexpr std::uint64_t kControlExpectedMinBudget = test_support::strict_terminal_budget(18);
 
 // Search interval, the donor's (test_add_gate_crash_budget.cpp:204-205).
 constexpr std::uint64_t kSearchLo = 1;
@@ -304,6 +305,7 @@ void RunCampaign(std::uint32_t stagnation_threshold, std::uint64_t max_iteration
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -561,9 +563,10 @@ void MeasureThreshold(std::uint32_t threshold, int& seq, ThresholdResult& out) {
 // The header both tests print before their first probe, so the model stands
 // above its own evidence in the raw log.
 void PrintMeta(const char* scope, std::size_t thresholds) {
-    std::cout << "STAGNATION-AXIS-META scope=" << scope << " add_gate=" << ADD_GATE_REL
-              << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
-              << " rng_seed=" << kRngSeed << " arm_seed=fixed"
+    std::cout << "STAGNATION-AXIS-META budget_units=strict_execs "
+                 "historical_controls=legacy_requested terminal_control_adjustment=plus_one scope="
+              << scope << " add_gate=" << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL
+              << " cov_library=" << COV_LIBRARY_REL << " rng_seed=" << kRngSeed << " arm_seed=fixed"
               << " search_lo=" << kSearchLo << " search_hi=" << kSearchHi
               << " thresholds=" << thresholds << '\n'
               << "STAGNATION-AXIS-MODEL formula=\"" << kModelFormula << "\" model_kind_rule=\""
@@ -592,15 +595,16 @@ TEST(AddGateBudgetStagnationAxis, ControlThreshold8ReproducesTask067MinBudget) {
     MeasureThreshold(kControlThreshold, seq, r);
     ASSERT_FALSE(::testing::Test::HasFatalFailure());
 
-    const bool control_equals_18 = r.crashed_at_hi && r.min_budget == kControlExpectedMinBudget;
-    EXPECT_TRUE(control_equals_18)
+    const bool control_matches_legacy_pin =
+        r.crashed_at_hi && r.min_budget == kControlExpectedMinBudget;
+    EXPECT_TRUE(control_matches_legacy_pin)
         << "control threshold " << kControlThreshold
         << " did not reproduce min_budget_crash=" << kControlExpectedMinBudget << " from task-067";
 
     std::cout << "STAGNATION-AXIS-CONTROL-VERDICT: ADD-GATE-STAGNATION-AXIS-CONTROL: threshold="
               << kControlThreshold << ", min_budget="
               << (r.crashed_at_hi ? std::to_string(r.min_budget) : std::string("none"))
-              << ", control_threshold8_equals_18=" << (control_equals_18 ? "yes" : "no")
+              << ", control_threshold8_equals_18=" << (control_matches_legacy_pin ? "yes" : "no")
               << ", first_concolic_iteration="
               << (r.concolic_called_at_hi ? std::to_string(r.first_concolic_iteration)
                                           : std::string("none"))
@@ -656,7 +660,7 @@ TEST(AddGateBudgetStagnationAxis, MinimalBudgetAcrossStagnationThresholds) {
     std::string offset_fails_names;
     std::size_t probes_total = 0;
     std::uint64_t control_cadence = 0;
-    bool control_equals_18 = false;
+    bool control_matches_legacy_pin = false;
     for (const ThresholdResult& r : results) {
         probes_total += r.probes;
         if (r.crashed_at_hi) {
@@ -676,14 +680,15 @@ TEST(AddGateBudgetStagnationAxis, MinimalBudgetAcrossStagnationThresholds) {
         }
         if (r.threshold == kControlThreshold) {
             control_cadence = r.cadence_fit;
-            control_equals_18 = r.crashed_at_hi && r.min_budget == kControlExpectedMinBudget;
+            control_matches_legacy_pin =
+                r.crashed_at_hi && r.min_budget == kControlExpectedMinBudget;
         }
     }
 
     // The control decides whether anything else in the table is proven: a
     // harness that cannot reproduce the pinned 18 is not measuring task-067's
     // quantity.
-    EXPECT_TRUE(control_equals_18)
+    EXPECT_TRUE(control_matches_legacy_pin)
         << "control threshold " << kControlThreshold
         << " did not reproduce min_budget_crash=" << kControlExpectedMinBudget << " from task-067";
 
@@ -765,7 +770,7 @@ TEST(AddGateBudgetStagnationAxis, MinimalBudgetAcrossStagnationThresholds) {
 
     std::cout << "STAGNATION-AXIS-VERDICT: ADD-GATE-STAGNATION-AXIS: thresholds="
               << kThresholds.size() << ", values=1|2|4|8|16|32, control_threshold8_equals_18="
-              << (control_equals_18 ? "yes" : "no")
+              << (control_matches_legacy_pin ? "yes" : "no")
               << ", offset_equals_threshold=" << (offset_equals_threshold_all ? "yes" : "no")
               << ", min_budget_min=" << min_of_minima << ", min_budget_max=" << max_of_minima
               << ", monotonic_in_threshold=" << (monotonic_in_threshold ? "yes" : "non-monotonic")

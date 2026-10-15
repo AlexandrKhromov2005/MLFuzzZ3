@@ -94,6 +94,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -235,7 +236,7 @@ constexpr std::uint64_t kSearchHi = 400;
 // THIS threshold (docs/experiments/solver-add-gate-threshold64/report.md:12,
 // "cracked_at_64=yes, min_budget_at_64=83, first_concolic_iteration=83,").
 // It is an expectation about the STAND, not about the BE fixture.
-constexpr std::uint64_t kControlLeExpected = 83;
+constexpr std::uint64_t kControlLeExpected = test_support::strict_terminal_budget(83);
 
 // The T = 8 side of the comparison, quoted and not re-measured. Both numbers
 // come from the committed verdict of task-080:
@@ -318,6 +319,7 @@ void RunCampaign(const char* fixture_bin, const char* seed_name, const char* met
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -479,7 +481,9 @@ TEST(AddGateBeThreshold64, BigEndianGateAtTheProductionStagnationThreshold) {
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count();
     };
 
-    std::cout << "BE64-META add_gate_be=" << ADD_GATE_BE_REL << " add_gate=" << ADD_GATE_REL
+    std::cout << "BE64-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one add_gate_be="
+              << ADD_GATE_BE_REL << " add_gate=" << ADD_GATE_REL
               << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
               << " encoding=u32be fields_offsets=0|4 rng_seed=" << kRngSeed
               << " arm_seed=donor stagnation_threshold=" << kStagnationThreshold
@@ -519,7 +523,7 @@ TEST(AddGateBeThreshold64, BigEndianGateAtTheProductionStagnationThreshold) {
     }
     const bool control_le_ok = control_le_searched && control_le_min == kControlLeExpected;
     EXPECT_TRUE(control_le_ok) << "little-endian control returned " << control_le_min
-                               << " instead of the published " << kControlLeExpected
+                               << " instead of expected strict budget " << kControlLeExpected
                                << "; every big-endian line in this run is undproven";
 
     // --- Entry ticket for the fixture under test: the upper bound of the

@@ -88,6 +88,11 @@ endif()
 # Z3 is not linked against any project target yet; the solver facade in
 # Phase 3 will be the first consumer.
 option(FUZZER_BUILD_Z3 "Build the bundled Z3 submodule" ON)
+option(FUZZER_ENABLE_I2S "Register the cheap I2S campaign stage" ON)
+option(FUZZER_ENABLE_SMT "Register the I2S+SMT campaign stage" ${FUZZER_BUILD_Z3})
+if(FUZZER_ENABLE_SMT AND NOT FUZZER_BUILD_Z3)
+  message(FATAL_ERROR "FUZZER_ENABLE_SMT requires FUZZER_BUILD_Z3")
+endif()
 
 if(FUZZER_BUILD_Z3)
     if(NOT EXISTS "${CMAKE_SOURCE_DIR}/third_party/z3/CMakeLists.txt")
@@ -180,6 +185,7 @@ FetchContent_MakeAvailable(tl-expected)
 add_subdirectory(src/ipc)
 add_subdirectory(src/common)
 add_subdirectory(src/core)
+add_subdirectory(src/composition)
 add_subdirectory(src/cli)
 add_subdirectory(src/runtime)
 add_subdirectory(src/instrumentation)
@@ -191,10 +197,8 @@ add_subdirectory(src/coverage)
 # configures: without that option there is no libz3 target to link.
 if(FUZZER_BUILD_Z3)
   add_subdirectory(src/solver)
-  # Concolic orchestrator (ADR 0035) links fuzzer::solver, so it lives
-  # inside the same Z3 gate.
-  add_subdirectory(src/concolic)
 endif()
+add_subdirectory(src/concolic)
 
 # Stage 2 instrumentation helper (ADR 0024 §Compiler integration).
 # Provides mlfuzzz3_instrument_target(<target>) — usable by fixtures

@@ -1,0 +1,144 @@
+{
+  "license": "MIT",
+  "code_revision": "4ad2e1652a135b1f37ad853d2bc527059839e0be",
+  "build_type": "Debug",
+  "warnings": [
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Werror"
+  ],
+  "registered_tests": 541,
+  "matrix": [
+    {
+      "configuration": {
+        "z3": false,
+        "smt": false,
+        "i2s": true
+      },
+      "ctest_passed": 229,
+      "ctest_seconds": 42.18,
+      "log": "modularity-observations-a.log",
+      "sha256": "df7c7255e349b96d0437d7e8d6aefc6fe73891cb5a0779b16c6e1fbc3bf2cc15"
+    },
+    {
+      "configuration": {
+        "z3": false,
+        "smt": false,
+        "i2s": false
+      },
+      "ctest_passed": 226,
+      "ctest_seconds": 42.22,
+      "log": "modularity-observations-b.log",
+      "sha256": "59aca81c7aa86aa55c945264e5c314314797856eddb0057a482b742f63faacef"
+    },
+    {
+      "configuration": {
+        "z3": true,
+        "smt": false,
+        "i2s": true
+      },
+      "ctest_passed": 481,
+      "ctest_seconds": 44.46,
+      "log": "modularity-observations-c.log",
+      "sha256": "9ee7c2d098ffd6fc5ef1a54bd31e4e9312f198543121fa0554a9381874728879"
+    },
+    {
+      "configuration": {
+        "z3": true,
+        "smt": true,
+        "i2s": true
+      },
+      "ctest_passed": 535,
+      "ctest_seconds": 428.72,
+      "log": "modularity-observations-d.log",
+      "sha256": "cb0642b4e84a51eed3310f2436066890f74c03310d09181f03d4cae7a98b53ca"
+    }
+  ],
+  "additional_regular_regressions": {
+    "suite": "SolverObservationRegression",
+    "passed": 2
+  },
+  "static_checks": {
+    "format_cpp_files": 195,
+    "clang_tidy_production_units": 35,
+    "golangci_lint_issues": 0,
+    "go_build_vet_test": true
+  },
+  "research_artifacts_sha256": {
+    "benchmarks/magma/vendor/out-tiff/tiff_read_rgba_fuzzer": "3d1bc9bc22ca92281f66f92739c9a00a8ad1d202ae4afa665e53b04c156ab38a",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/11.tif": "5fa881bec5141c8160cb1ec015a091032310d9541ce6535b7f67b70008cae428",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/15.tif": "c15d678f4c08ca56c03de52190c0314d31f79462b98e60297fc7f19bc21433ab",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/2.tif": "571449672045faf3ef67ff2cd21cfcf3a7b1a716532c4000b9e84ac2596a5aa1",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/36.tif": "78d022781316fff17f4645264a15aa534f909c6ee9f8abcdc108fdd4f3574c27",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/38.tif": "1b414b28fd0d58be43df935cc870105fa52a2ed45db7dcfd8a368efa7d1f9ee1",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/40.tif": "e21d6141c0dde301948fe2356f7cd290578b21d2a7617af972f1f54d7f11287e",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/44.tif": "c3fc1a44f340a3b7710387155ce8d5c1963c785b6f5e1ae46ada04c32e9340fe",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/51.tif": "2317582a94020a62606e4535a8bd3effd5b037fea0b22d0eb234f3d99b2ec0c6",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/54.tif": "d61ff2108071ef0aada053fe4ddccc1a8c58448ecbf027bd3368323b0b0ec71e",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/56.tif": "70a4ba3b9fc4cd2f0854afa8e29641ef2d0f278fb13cae87f7de1e9925798473",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/6.tif": "374f7b2aefffc4312f998df9b3325b02d3497dc521a279c5d831215dfd40c2a9",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/64.tif": "5671de767ee88f821e004dddbd0a539d269ffad1cb55ff368de975645c48cdb8",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/67.tif": "557b2f29561028beb710bf894678f5f00a50734da87e5f6fd333fc3ad4de0168",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/7.tif": "64f4a5c0cceb095bc7ca9abd06098b8db98cef07d4284600be0dcccf834b57b3",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/73.tif": "24ddade920cead57efa83b270f682647cd4992212cb87131c89272814412d40d",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/84.tif": "a0b9964b8b0dc69b856bf4a28b192c32a6fe29d3f25df176b7b8f2b40ca4253c",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/88.tif": "43004c5746f5fff1d1ca424ee8f83804e6e32dc499fbe462ffdade15333ecb68",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/93.tif": "ce83d1f2170aeb21502f1bef41dd36cb4c30f1a664411e3379180415373e7710",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/97.tif": "6f989d35ce93cfc1469fa5f4e4107883ae6c01d8b734be262f8e84ae0cb5da27",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/99.tif": "7c64d3441ada4979eb99fed139a16325c4b50c932641af72489196e6f77a245f",
+    "benchmarks/magma/vendor/magma-src/targets/libtiff/corpus/tiff_read_rgba_fuzzer/not_kitty.tiff": "93bb7de0e2d702c9bb818d175647a152646b0373bcea1272944847a228c0ddf9"
+  },
+  "research_results": {
+    "census": {
+      "exit_code": 0,
+      "elapsed_seconds": 340.74770845501916,
+      "skipped": false,
+      "passed": true,
+      "log": "modularity-research-census.log",
+      "filter": "BindingCensus.*",
+      "sha256": "ac5d037f76e768ebffc13f04f5f04c85e5b3a74b837fd168971de6ede6f1590d"
+    },
+    "build": {
+      "exit_code": 0,
+      "elapsed_seconds": 847.1930056270212,
+      "skipped": false,
+      "passed": true,
+      "log": "modularity-research-build.log",
+      "filter": "BuildCost.*",
+      "sha256": "51369a98d4ade08f77db0d4bfb360f67d6d8eea7bb88ea40f7846239db41f386"
+    },
+    "prefix": {
+      "exit_code": 0,
+      "elapsed_seconds": 5401.160681659996,
+      "skipped": false,
+      "passed": true,
+      "log": "modularity-research-prefix.log",
+      "filter": "SolverPrefixSweep.*",
+      "sha256": "c89deb0a3adeb6fac19447017c86dacd80f920d4f13a94783814e6ac7524a948",
+      "seeds": 21,
+      "cells": 9664,
+      "stop_reason": "walltime"
+    },
+    "target": {
+      "exit_code": 0,
+      "elapsed_seconds": 5402.002706924977,
+      "skipped": false,
+      "passed": true,
+      "log": "modularity-research-target.log",
+      "filter": "SolverTargetIndexSweep.*",
+      "sha256": "a5d48777078bfaf4dce325ec85ae2f8f612e9009db01e48b975ea0e48b8e760c",
+      "seeds": 21,
+      "cells": 9651,
+      "stop_reason": "walltime"
+    }
+  },
+  "research_pending": [],
+  "log_archive": "MLFuzzZ3-modularity-validation/2026-10-15",
+  "benchmarks": {
+    "havoc_benchmark.json": "158a3074c23e9115d586c05a8a6d4721897b6f87ad36c7d7de48efc0a68d5081",
+    "campaign_benchmark.json": "512c829c34767e87cc1cd12bf9e06ec637c110b43f6f1814a9a551c100244e70"
+  },
+  "all_registered_tests_exercised": true,
+  "all_registered_tests_passed": true
+}

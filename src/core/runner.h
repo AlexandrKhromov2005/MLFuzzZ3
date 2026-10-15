@@ -9,19 +9,11 @@
 #include "branch_reader.h"
 #include "session.h"
 
-// Phase 2 MVP fuzzing loop (ADR 0029). Runner is the seam between the
-// campaign loop and the execution transport. The loop drives
-// Runner::Run; the production adapter (SessionRunner) forwards to
-// ipc::ClientSession::Run. The seam keeps the loop unit-testable without
-// a live exec-server and leaves room for a future batch/parallel runner
-// (the MVP stays on the single Run, ADR 0029 §Граница scope).
-//
-// ADR 0036 (D4-б1) extends the seam with LastBranchRecords(): the concolic
-// campaign integration needs the branch-value records of the last run, and
-// the records are NOT on the RunResponse wire (only the summary is) — they
-// live in the announced SHM segment. SessionRunner owns the BranchReader
-// over that segment so the records reach the loop through the same seam,
-// keeping the loop testable with a fake runner that returns canned records.
+// Compatibility transport seam (ADR 0029/0036). SessionRunner forwards to
+// ipc::ClientSession and owns the mapped comparison reader. RunnerBackend
+// in composition copies each response and its observations into an owning
+// domain ExecutionResult before another run. CampaignLoop uses only that
+// domain backend; research runners retain this transport API.
 
 namespace mlfuzzz3::core {
 
@@ -38,6 +30,17 @@ class Runner {
     // RunResponse, or an IpcError on transport failure.
     [[nodiscard]] virtual tl::expected<ipc::v1::RunResponse, ipc::IpcError> Run(
         std::span<const std::uint8_t> input) = 0;
+
+    // Compatibility defaults keep in-memory research runners usable.
+    [[nodiscard]] virtual bool has_coverage_channel() const {
+        return true;
+    }
+    [[nodiscard]] virtual bool has_comparison_channel() const {
+        return true;
+    }
+    [[nodiscard]] virtual bool last_branch_overflow() const {
+        return false;
+    }
 
     // LastBranchRecords returns the branch-value comparison records of the
     // last OK run (ADR 0036). Empty when no branch channel is active or the
@@ -63,6 +66,16 @@ class SessionRunner final : public Runner {
         std::span<const std::uint8_t> input) override;
 
     [[nodiscard]] std::vector<coverage::BranchReader::Record> LastBranchRecords() const override;
+
+    [[nodiscard]] bool has_coverage_channel() const override {
+        return session_.coverage_fd() >= 0;
+    }
+    [[nodiscard]] bool has_comparison_channel() const override {
+        return branch_reader_.has_value();
+    }
+    [[nodiscard]] bool last_branch_overflow() const override {
+        return branch_reader_ && last_run_ok_ && branch_reader_->Overflow();
+    }
 
    private:
     ipc::ClientSession& session_;

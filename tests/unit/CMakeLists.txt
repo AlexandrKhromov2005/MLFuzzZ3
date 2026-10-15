@@ -1,5 +1,6 @@
 add_subdirectory(cli)
 add_subdirectory(common)
+add_subdirectory(composition)
 add_subdirectory(core)
 add_subdirectory(coverage)
 add_subdirectory(instrumentation)

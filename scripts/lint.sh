@@ -26,7 +26,12 @@ if [[ ! -f "${BUILD_DIR}/compile_commands.json" ]]; then
 fi
 
 echo "--- clang-tidy ---"
-mapfile -t cpp_sources < <(find src -type f -name '*.cpp' 2>/dev/null | sort)
+# Read the actual compile database: optional stages may be disabled independently.
+lint_sources="$(cmake -DROOT_DIR="${ROOT_DIR}" -DBUILD_DIR="${BUILD_DIR}" -P "${SCRIPT_DIR}/lint-sources.cmake")"
+cpp_sources=()
+if [[ -n "${lint_sources}" ]]; then
+    mapfile -t cpp_sources <<< "${lint_sources}"
+fi
 if (( ${#cpp_sources[@]} > 0 )); then
     # clang-tidy prints "N warnings generated." for every TU it parses; that
     # count comes from the underlying clang frontend and mostly reflects

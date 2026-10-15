@@ -97,6 +97,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -258,7 +259,7 @@ constexpr std::array<std::uint64_t, 3> kSeeds = {kDonorRngSeed, kMinRngSeed, kMe
 // threshold32_equals_51=yes, prediction_printed_before_run=51,»; the probe
 // itself at docs/experiments/solver-add-gate-threshold64/raw-threshold64.txt:150,
 // «min_budget=51 first_concolic_iteration=51»).
-constexpr std::uint64_t kDonorExpectedT32 = 51;
+constexpr std::uint64_t kDonorExpectedT32 = test_support::strict_terminal_budget(51);
 constexpr const char* kControlSource = "docs/experiments/solver-add-gate-threshold64/report.md:14";
 
 // The ladder's interval, task-081's unchanged. The donor's 51 and task-108's
@@ -369,6 +370,7 @@ void RunCampaign(std::uint64_t rng_seed, std::uint64_t max_iterations, CampaignS
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -749,8 +751,9 @@ void MeasureSeed(std::uint64_t rng_seed, std::uint64_t t8_min_budget, std::uint6
 
 // The header of the raw log: what was fixed before the first probe ran.
 void PrintMeta() {
-    std::cout << "RANK32-META gate=add_gate add_gate=" << ADD_GATE_REL
-              << " exec_server=" << EXEC_SERVER_REL << " threshold=" << kThreshold32
+    std::cout << "RANK32-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one gate=add_gate add_gate="
+              << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL << " threshold=" << kThreshold32
               << " donor_threshold=" << kDonorThreshold
               << " production_threshold=" << kDefaultConcolicStagnationThreshold
               << " threshold_source=src/core/campaign.h:58 arm_seed=donor"
@@ -884,7 +887,8 @@ TEST(AddGateRankThreshold32, SeedRankAtTheIntermediateStagnationThreshold) {
               << std::flush;
 
     EXPECT_TRUE(control_holds)
-        << "control seed " << kDonorRngSeed << " did not reproduce task-081's " << kDonorExpectedT32
+        << "control seed " << kDonorRngSeed
+        << " did not reproduce the strict-budget equivalent of task-081's " << kDonorExpectedT32
         << " at threshold " << kThreshold32
         << "; the stand is not the same stand and no line about the order is licensed";
     EXPECT_LE(walltime_used, static_cast<std::uint64_t>(kWalltimeBudgetS))

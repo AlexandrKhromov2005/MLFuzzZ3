@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <vector>
@@ -103,6 +104,9 @@ struct Fixes {
     /// владеет: провайдер обязан пережить вызов. `class` в объявлении
     /// вводит имя в пространство имён, не сдвигая строк выше.
     const class BindingProvider* binding = nullptr;
+    /// Cooperative campaign budget; empty for offline reconstruction.
+    std::function<bool()> cancelled = nullptr;
+    std::function<unsigned()> remaining_timeout = nullptr;
 };
 
 /// `BuildSystem` с включёнными починками ADR 0049 (F1 — индекс входа,

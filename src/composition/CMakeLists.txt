@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+add_library(fuzzer_composition STATIC components.cpp composition_config.cpp artifacts.cpp campaign_factory.cpp execution_adapter.cpp ../core/runner.cpp)
+add_library(fuzzer::composition ALIAS fuzzer_composition)
+target_include_directories(fuzzer_composition PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(fuzzer_composition PUBLIC fuzzer::core fuzzer::mutation fuzzer::session fuzzer::coverage PRIVATE fuzzer::warnings yaml-cpp::yaml-cpp)
+
+if(FUZZER_ENABLE_I2S)
+  target_sources(fuzzer_composition PRIVATE i2s_stage.cpp)
+  target_link_libraries(fuzzer_composition PRIVATE fuzzer::binding)
+  target_compile_definitions(fuzzer_composition PUBLIC MLFUZZZ3_WITH_I2S)
+endif()
+if(FUZZER_ENABLE_SMT)
+  target_sources(fuzzer_composition PRIVATE solver_stage.cpp)
+  target_link_libraries(fuzzer_composition PRIVATE fuzzer::concolic)
+  target_compile_definitions(fuzzer_composition PRIVATE MLFUZZZ3_WITH_CONCOLIC)
+endif()

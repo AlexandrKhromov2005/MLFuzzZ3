@@ -89,6 +89,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -226,7 +227,7 @@ constexpr std::uint64_t kSearchHi = 200;
 // The published 32-bit number this stand must reproduce on seed 7
 // (docs/experiments/solver-add-gate-crash-budget/report.md:10). It is an
 // expectation about the STAND, not about the 16-bit fixture.
-constexpr std::uint64_t kControlU32Expected = 18;
+constexpr std::uint64_t kControlU32Expected = test_support::strict_terminal_budget(18);
 
 // The disarmed ladder, capped by the task at 1600 iterations. Each rung runs
 // add_gate_w16 with the stagnation threshold pushed past its own budget, so no
@@ -304,6 +305,7 @@ void RunCampaign(const char* fixture_bin, const char* seed_name, const char* met
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -426,7 +428,9 @@ TEST(AddGateW16CrashBudget, MinimalBudgetThatStillReachesTheCrashWidth16) {
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count();
     };
 
-    std::cout << "BUDGET-META add_gate_w16=" << ADD_GATE_W16_REL << " add_gate=" << ADD_GATE_REL
+    std::cout << "BUDGET-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one add_gate_w16="
+              << ADD_GATE_W16_REL << " add_gate=" << ADD_GATE_REL
               << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
               << " encoding=u16le width_bits=16 fields_offsets=0|2 rng_seed=" << kRngSeed
               << " arm_seed=donor stagnation_threshold=" << kStagnationThreshold
@@ -466,7 +470,7 @@ TEST(AddGateW16CrashBudget, MinimalBudgetThatStillReachesTheCrashWidth16) {
     }
     const bool control_u32_ok = control_u32_searched && control_u32_min == kControlU32Expected;
     EXPECT_TRUE(control_u32_ok) << "32-bit control returned " << control_u32_min
-                                << " instead of the published " << kControlU32Expected
+                                << " instead of expected strict budget " << kControlU32Expected
                                 << "; every 16-bit line in this run is unproven";
 
     // --- Entry ticket for the fixture under test: the upper bound of the

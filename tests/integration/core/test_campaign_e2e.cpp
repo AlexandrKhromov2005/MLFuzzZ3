@@ -18,10 +18,12 @@
 #include <gtest/gtest.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <yaml-cpp/yaml.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -381,4 +383,88 @@ TEST(ParserFixtureE2E, ByteflipReachesCrashAButNeverCrashB) {
     std::filesystem::remove_all(out, ec);
 }
 
+}  // namespace
+
+namespace {
+TEST(CompositionE2E, ProfilesRespectYamlAndExplicitCliOverrides) {
+    ASSERT_TRUE(PathExecutable(FUZZER_BIN));
+    const auto base = std::filesystem::path(::testing::TempDir()) /
+                      ("composition_profiles_" + std::to_string(::getpid()));
+    std::filesystem::create_directories(base);
+    std::vector<std::string> profiles{"legacy", "mutation-only"};
+#if COMPOSITION_HAS_I2S
+    profiles.emplace_back("hybrid-heuristic");
+    profiles.emplace_back("hybrid-ml");
+#endif
+    for (const auto& profile : profiles) {
+        const auto config_path = base / (profile + ".yaml");
+        std::ofstream config(config_path);
+        config << "composition:\n  schema_version: 1\n  profile: " << profile
+               << "\n  seed: 37\n  seed_scheduler: {type: round-robin}\n"
+                  "  campaign: {max_iterations: 40, max_det_steps: 0, stagnation_threshold: 0}\n";
+        config.close();
+        const auto out = base / profile;
+        std::vector<std::string> args{FUZZER_BIN,
+                                      "--exec-server",
+                                      EXEC_SERVER_BIN,
+                                      "--target",
+                                      COV_STDIN_BIN,
+                                      "--cov-library",
+                                      COV_LIBRARY_PATH,
+                                      "--out-dir",
+                                      out.string(),
+                                      "--config",
+                                      config_path.string(),
+                                      "--max-iterations",
+                                      "9",
+                                      "--mutator",
+                                      "byteflip"};
+#if !COMPOSITION_HAS_SMT
+        args.emplace_back("--no-concolic");
+#endif
+        ASSERT_EQ(RunBinary(args), 0) << profile;
+        const auto resolved = YAML::LoadFile((out / "resolved.yaml").string());
+        EXPECT_EQ(resolved["seed"].as<unsigned>(), 37U);
+        EXPECT_EQ(resolved["seed_scheduler"]["type"].as<std::string>(), "round-robin");
+        EXPECT_EQ(resolved["campaign"]["max_iterations"].as<unsigned>(), 9U);
+        EXPECT_TRUE(std::filesystem::exists(out / "run-manifest.yaml"));
+        std::ifstream events(out / "events.jsonl");
+        std::string line;
+        unsigned executions = 0;
+        while (std::getline(events, line)) {
+            const auto event = YAML::Load(line);
+            if (event["event"].as<std::string>() == "execution") {
+                ++executions;
+                EXPECT_EQ(
+                    event["comparisons_available"].as<bool>(),
+                    event["purpose"].as<unsigned>() == 2U && event["status"].as<unsigned>() == 0U);
+                EXPECT_EQ(event["run_id"].as<unsigned>(), executions);
+                EXPECT_GT(event["decision_id"].as<unsigned>(), 0U);
+            }
+        }
+        EXPECT_EQ(executions, 9U) << profile;
+    }
+    std::filesystem::remove_all(base);
+}
+TEST(CompositionE2E, InvalidStageFailsBeforeExecutionServerStarts) {
+    const auto base = std::filesystem::path(::testing::TempDir()) /
+                      ("composition_invalid_" + std::to_string(::getpid()));
+    std::filesystem::create_directories(base);
+    const auto marker = base / "server_started";
+    const auto server = base / "server.sh";
+    std::ofstream script(server);
+    script << "#!/bin/sh\n: > '" << marker.string() << "'\nexit 1\n";
+    script.close();
+    std::filesystem::permissions(server, std::filesystem::perms::owner_all);
+    const auto config_path = base / "invalid.yaml";
+    std::ofstream config(config_path);
+    config << "schema_version: 1\nprofile: mutation-only\nstages: [{type: missing}]\n";
+    config.close();
+    EXPECT_NE(RunBinary({FUZZER_BIN, "--exec-server", server.string(), "--target", COV_STDIN_BIN,
+                         "--cov-library", COV_LIBRARY_PATH, "--out-dir", (base / "out").string(),
+                         "--config", config_path.string()}),
+              0);
+    EXPECT_FALSE(std::filesystem::exists(marker));
+    std::filesystem::remove_all(base);
+}
 }  // namespace

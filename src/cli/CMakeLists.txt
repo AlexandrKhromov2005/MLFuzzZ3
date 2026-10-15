@@ -16,6 +16,7 @@ target_link_libraries(fuzzer_cli_args
   PUBLIC
     # args.h includes campaign.h for core::kDefaultMaxDetSteps.
     fuzzer::core
+    fuzzer::composition
   PRIVATE
     fuzzer::warnings
 )
@@ -28,6 +29,7 @@ add_executable(fuzzer
 target_link_libraries(fuzzer
   PRIVATE
     fuzzer::cli_args
+    fuzzer::composition
     fuzzer::core
     fuzzer::common
     fuzzer::session

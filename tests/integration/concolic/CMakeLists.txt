@@ -1,3 +1,8 @@
+# Campaign experiment fixtures require the optional SMT stage registration.
+if(NOT FUZZER_ENABLE_SMT)
+  return()
+endif()
+
 # End-to-end cross-field concolic test (ADR 0035). Reuses the
 # exec_server_bin target defined in tests/integration/coverage; runs the
 # orchestrator (fuzzer::concolic) against the cov_xfield fixture through a
@@ -30,9 +35,9 @@ if(TARGET cov_xfield_build AND TARGET fuzzer::concolic AND TARGET exec_server_bi
         PROPERTIES TIMEOUT 60)
 
     # ADR 0036: campaign-loop concolic integration e2e. The loop itself
-    # (fuzzer::core, built with concolic) triggers concolic on stagnation
-    # and reaches the crash. Links fuzzer::core; concolic is pulled in
-    # transitively (PRIVATE dep of fuzzer::core under FUZZER_BUILD_Z3).
+    # (fuzzer::composition, built with concolic) triggers concolic on stagnation
+    # and reaches the crash. Links fuzzer::composition; concolic is pulled in
+    # transitively (PRIVATE dep of fuzzer::composition under FUZZER_BUILD_Z3).
     add_executable(test_campaign_concolic_e2e
         test_campaign_concolic_e2e.cpp)
 
@@ -42,7 +47,7 @@ if(TARGET cov_xfield_build AND TARGET fuzzer::concolic AND TARGET exec_server_bi
 
     target_link_libraries(test_campaign_concolic_e2e
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -79,7 +84,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_campaign_add_gate_e2e
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -120,7 +125,7 @@ if(TARGET sub_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_campaign_sub_gate_e2e
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -165,7 +170,7 @@ if(TARGET add_gate_build AND TARGET sub_gate_build AND TARGET fuzzer::concolic
 
     target_link_libraries(test_add_gate_crash_budget
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -229,7 +234,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_noconcolic_ceiling
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -284,7 +289,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_ceiling_depth
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -346,7 +351,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_budget_seed_spread
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -409,7 +414,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_budget_stagnation_axis
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -471,7 +476,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_ceiling_seed_spread
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -536,7 +541,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_budget_threshold64
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -596,7 +601,7 @@ if(TARGET add_gate_be_build AND TARGET add_gate_build AND TARGET fuzzer::concoli
 
     target_link_libraries(test_add_gate_be_crash_budget
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -659,7 +664,7 @@ if(TARGET add_gate_w16_build AND TARGET add_gate_build AND TARGET fuzzer::concol
 
     target_link_libraries(test_add_gate_w16_crash_budget
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -711,7 +716,7 @@ if(TARGET add_gate_w16_build AND TARGET add_gate_build AND TARGET fuzzer::concol
 
     target_link_libraries(test_w16_binding_gap
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::concolic
             fuzzer::session
             fuzzer::mutation
@@ -757,7 +762,7 @@ if(TARGET add_gate_w16_build AND TARGET fuzzer::concolic AND TARGET exec_server_
 
     target_link_libraries(test_w16_binding_hypothesis_split
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::concolic
             fuzzer::session
             fuzzer::mutation
@@ -820,7 +825,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_rank_across_threshold
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -882,7 +887,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_rank_threshold32
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -936,7 +941,7 @@ if(TARGET add_gate_build AND TARGET add_gate_w16_build AND TARGET fuzzer::concol
 
     target_link_libraries(test_solver_time_by_outcome
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -996,7 +1001,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_ensemble_threshold64
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -1061,7 +1066,7 @@ if(TARGET add_gate_be_build AND TARGET add_gate_build AND TARGET fuzzer::concoli
 
     target_link_libraries(test_add_gate_be_threshold64
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -1120,7 +1125,7 @@ if(TARGET add_gate_be_build AND TARGET fuzzer::concolic AND TARGET exec_server_b
 
     target_link_libraries(test_add_gate_be_ensemble_threshold64
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -1183,7 +1188,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_add_gate_rank_threshold16
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings
@@ -1244,7 +1249,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_solver_target_index_sweep
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::concolic
             fuzzer::session
             fuzzer::coverage
@@ -1287,7 +1292,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_binding_census
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::concolic
             fuzzer::session
             fuzzer::coverage
@@ -1326,7 +1331,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_solver_prefix_sweep
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::concolic
             fuzzer::session
             fuzzer::coverage
@@ -1363,7 +1368,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_solver_fix_ladder
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::concolic
             fuzzer::session
             fuzzer::coverage
@@ -1402,7 +1407,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_system_dump
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::concolic
             fuzzer::session
             fuzzer::coverage
@@ -1432,7 +1437,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(test_occurrence_alignment
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::coverage
             fuzzer::warnings
@@ -1474,7 +1479,7 @@ if(TARGET add_gate_build AND TARGET fuzzer::concolic AND TARGET exec_server_bin)
 
     target_link_libraries(campaign_call_cost_split_harness
         PRIVATE
-            fuzzer::core
+            fuzzer::composition
             fuzzer::session
             fuzzer::mutation
             fuzzer::warnings

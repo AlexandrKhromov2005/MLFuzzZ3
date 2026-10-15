@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <random>
 
+#include "corpus_view.h"
 #include "rng.h"
 
 // Phase 2 MVP fuzzing loop (ADR 0029). SeedScheduler is the seam that
@@ -32,6 +34,11 @@ class SeedScheduler {
     // before scheduling begins (ADR 0029 §Решение, Corpus bootstrap).
     [[nodiscard]] virtual std::size_t Choose(std::size_t corpus_size) = 0;
 
+    [[nodiscard]] virtual std::size_t choose(const CorpusView& corpus) {
+        return Choose(corpus.size());
+    }
+    virtual void on_result(std::uint64_t /*seed_id*/, const SeedFeedback& /*feedback*/) {}
+
     // Stable identifier for logs and metrics. Mirrors Mutator::name().
     [[nodiscard]] virtual const char* name() const noexcept = 0;
 };
@@ -43,6 +50,7 @@ class SeedScheduler {
 // produce the same Choose() sequence for the same corpus_size inputs.
 class RandomScheduler final : public SeedScheduler {
    public:
+    using SeedScheduler::Choose;
     explicit RandomScheduler(std::uint64_t seed) : rng_(mutation::make_rng(seed)) {}
 
     [[nodiscard]] std::size_t Choose(std::size_t corpus_size) override {
@@ -55,6 +63,25 @@ class RandomScheduler final : public SeedScheduler {
 
    private:
     std::mt19937_64 rng_;
+};
+
+// A cursor over append-only corpus indices. Growth participates on the next
+// choice; modulo also keeps the result valid if a caller supplies a smaller view.
+class RoundRobinScheduler final : public SeedScheduler {
+   public:
+    using SeedScheduler::Choose;
+    [[nodiscard]] std::size_t Choose(std::size_t corpus_size) override {
+        assert(corpus_size > 0 && "scheduler requires a nonempty corpus");
+        const std::size_t selected = cursor_ % corpus_size;
+        cursor_ = selected + 1;
+        return selected;
+    }
+    [[nodiscard]] const char* name() const noexcept override {
+        return "round-robin";
+    }
+
+   private:
+    std::size_t cursor_ = 0;
 };
 
 }  // namespace mlfuzzz3::core

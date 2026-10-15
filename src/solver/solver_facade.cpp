@@ -146,14 +146,50 @@ SolveResult Error() {
     return {.status = SolveResult::Status::kError, .model_values = {}};
 }
 
+unsigned get_remaining_timeout(const SolverControl& control, unsigned requested) {
+    const auto remaining = control.remaining_timeout();
+    if (remaining == 0) {
+        return 0;
+    }
+    return requested == 0 ? remaining : std::min(requested, remaining);
+}
+
+SolveResult check_and_model(z3::solver& solver, const std::vector<z3::expr>& vars,
+                            const SolverControl& control) {
+    switch (solver.check()) {
+        case z3::sat: {
+            const z3::model model = solver.get_model();
+            std::vector<std::uint64_t> values;
+            values.reserve(vars.size());
+            for (const z3::expr& var : vars) {
+                if (control.cancelled && control.cancelled()) {
+                    return {.status = SolveResult::Status::kTimeout, .model_values = {}};
+                }
+                values.push_back(model.eval(var, true).get_numeral_uint64());
+            }
+            return {.status = SolveResult::Status::kSat, .model_values = std::move(values)};
+        }
+        case z3::unsat:
+            return {.status = SolveResult::Status::kUnsat, .model_values = {}};
+        case z3::unknown:
+        default:
+            return {.status = SolveResult::Status::kTimeout, .model_values = {}};
+    }
+}
+
 }  // namespace
 
 // Parameter order is fixed by the ADR 0035 §1 contract; target_index and
 // timeout_ms are unavoidably convertible.
 // NOLINTBEGIN(bugprone-easily-swappable-parameters)
 SolveResult SolveInverted(std::size_t num_vars, const std::vector<Constraint>& path,
-                          std::size_t target_index, unsigned timeout_ms) {
+                          std::size_t target_index, unsigned timeout_ms,
+                          const SolverControl& control) {
     // NOLINTEND(bugprone-easily-swappable-parameters)
+    const auto cancelled = [&control]() { return control.cancelled && control.cancelled(); };
+    if (cancelled()) {
+        return {.status = SolveResult::Status::kTimeout, .model_values = {}};
+    }
     if (path.empty() || target_index >= path.size()) {
         return Error();
     }
@@ -161,6 +197,9 @@ SolveResult SolveInverted(std::size_t num_vars, const std::vector<Constraint>& p
     // Validate every constraint and fold variable widths in one pass.
     std::vector<unsigned> widths(num_vars, 0U);
     for (const Constraint& c : path) {
+        if (cancelled()) {
+            return {.status = SolveResult::Status::kTimeout, .model_values = {}};
+        }
         if (!WidthValid(c.bit_width) || !OperandValid(c.lhs, num_vars) ||
             !OperandValid(c.rhs, num_vars)) {
             return Error();
@@ -175,6 +214,9 @@ SolveResult SolveInverted(std::size_t num_vars, const std::vector<Constraint>& p
         std::vector<z3::expr> vars;
         vars.reserve(num_vars);
         for (std::size_t i = 0; i < num_vars; ++i) {
+            if (cancelled()) {
+                return {.status = SolveResult::Status::kTimeout, .model_values = {}};
+            }
             const unsigned width = widths[i] != 0U ? widths[i] : kUnreferencedVarWidth;
             vars.push_back(ctx.bv_const(("v" + std::to_string(i)).c_str(), width));
         }
@@ -185,28 +227,24 @@ SolveResult SolveInverted(std::size_t num_vars, const std::vector<Constraint>& p
         solver.set(params);
 
         for (std::size_t i = 0; i < path.size(); ++i) {
+            if (cancelled()) {
+                return {.status = SolveResult::Status::kTimeout, .model_values = {}};
+            }
             const z3::expr predicate = MakePredicate(ctx, vars, path[i]);
             // The target constraint is negated (branch inversion); every
             // other constraint is kept on its observed side.
             solver.add(i == target_index ? !predicate : predicate);
         }
 
-        switch (solver.check()) {
-            case z3::sat: {
-                const z3::model model = solver.get_model();
-                std::vector<std::uint64_t> values;
-                values.reserve(num_vars);
-                for (const z3::expr& var : vars) {
-                    values.push_back(model.eval(var, true).get_numeral_uint64());
-                }
-                return {.status = SolveResult::Status::kSat, .model_values = std::move(values)};
-            }
-            case z3::unsat:
-                return {.status = SolveResult::Status::kUnsat, .model_values = {}};
-            case z3::unknown:
-            default:
+        if (control.remaining_timeout) {
+            const auto remaining = get_remaining_timeout(control, timeout_ms);
+            if (remaining == 0) {
                 return {.status = SolveResult::Status::kTimeout, .model_values = {}};
+            }
+            params.set("timeout", remaining);
+            solver.set(params);
         }
+        return check_and_model(solver, vars, control);
     } catch (const z3::exception&) {
         return Error();
     }

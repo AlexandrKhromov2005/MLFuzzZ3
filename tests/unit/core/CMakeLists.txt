@@ -52,11 +52,12 @@ gtest_discover_tests(test_metrics)
 
 add_executable(test_campaign
   test_campaign.cpp
+  ${CMAKE_SOURCE_DIR}/tests/regression/test_campaign_without_solver.cpp
 )
 
 target_link_libraries(test_campaign
   PRIVATE
-    fuzzer::core
+    fuzzer::composition
     fuzzer::session
     fuzzer::mutation
     fuzzer::warnings
@@ -72,7 +73,7 @@ add_executable(test_runner
 
 target_link_libraries(test_runner
   PRIVATE
-    fuzzer::core
+    fuzzer::composition
     fuzzer::session
     fuzzer::warnings
     GTest::gtest_main
@@ -89,20 +90,19 @@ endif()
 gtest_discover_tests(test_runner)
 
 # ADR 0036: campaign-loop concolic-trigger coverage without a server. Only
-# meaningful with concolic (the stagnation trigger is behind
-# MLFUZZZ3_WITH_CONCOLIC, propagated PUBLIC by fuzzer::core under
-# FUZZER_BUILD_Z3); gated on the concolic target like the other Z3 tests.
-if(TARGET fuzzer::concolic)
+# meaningful with the registered SMT campaign stage; direct solver tests
+# remain available when the library is built without stage registration.
+if(TARGET fuzzer::concolic AND FUZZER_ENABLE_SMT)
   add_executable(test_campaign_concolic
     test_campaign_concolic.cpp
   )
 
-  # fuzzer::concolic is already pulled in transitively by fuzzer::core here,
+  # fuzzer::concolic is already pulled in transitively by fuzzer::composition here,
   # but it is linked explicitly so concolic.h is on the include path: the
   # attribution pin (AttributionFor) switches over concolic::SolveOutcome.
   target_link_libraries(test_campaign_concolic
     PRIVATE
-      fuzzer::core
+      fuzzer::composition
       fuzzer::concolic
       fuzzer::session
       fuzzer::mutation
@@ -114,17 +114,16 @@ if(TARGET fuzzer::concolic)
 endif()
 
 # task-030 / ADR 0036 §4: characterization of WHERE a concolic candidate's
-# edges are attributed (OK vs CRASH branch of StepConcolic). Same gating and
-# link set as test_campaign_concolic: the whole path is behind
-# MLFUZZZ3_WITH_CONCOLIC, and the candidate only exists with fuzzer::concolic.
-if(TARGET fuzzer::concolic)
+# edges are attributed for OK and CRASH. Same optional stage registration
+# and link set as test_campaign_concolic.
+if(TARGET fuzzer::concolic AND FUZZER_ENABLE_SMT)
   add_executable(test_concolic_edge_attribution
     test_concolic_edge_attribution.cpp
   )
 
   target_link_libraries(test_concolic_edge_attribution
     PRIVATE
-      fuzzer::core
+      fuzzer::composition
       fuzzer::concolic
       fuzzer::session
       fuzzer::mutation
@@ -134,3 +133,13 @@ if(TARGET fuzzer::concolic)
 
   gtest_discover_tests(test_concolic_edge_attribution)
 endif()
+if(TARGET fuzzer::concolic AND FUZZER_ENABLE_SMT)
+  add_executable(test_campaign_execution_budget ../../regression/test_campaign_execution_budget.cpp)
+  target_include_directories(test_campaign_execution_budget PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(test_campaign_execution_budget PRIVATE fuzzer::composition fuzzer::warnings GTest::gtest_main)
+  gtest_discover_tests(test_campaign_execution_budget)
+endif()
+# This executable intentionally links only core, proving transport/solver independence.
+add_executable(test_domain_campaign test_domain_campaign.cpp)
+target_link_libraries(test_domain_campaign PRIVATE fuzzer::core fuzzer::warnings GTest::gtest_main)
+gtest_discover_tests(test_domain_campaign)

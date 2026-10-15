@@ -89,6 +89,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -241,7 +242,7 @@ constexpr std::uint64_t kWalltimeBudgetMs = kWalltimeBudgetS * 1000;
 
 // task-067's pinned answer for the ARMED arm, the denominator of the ratio
 // this harness reports (report.md:10).
-constexpr std::uint64_t kPinTask067MinBudget = 18;
+constexpr std::uint64_t kPinTask067MinBudget = test_support::strict_terminal_budget(18);
 
 // A disarmed probe uses a stagnation threshold past its own budget, so the
 // campaign can never reach it. Same construction as the control of task-067
@@ -309,6 +310,7 @@ void RunCampaign(std::uint64_t max_iterations, std::uint32_t stagnation_threshol
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -403,7 +405,9 @@ TEST(AddGateCeilingDepth, HowDeepIsTheCeilingOfHavocAlone) {
         GTEST_SKIP() << why;
     }
 
-    std::cout << "DEPTH-META add_gate=" << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL
+    std::cout << "DEPTH-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one add_gate="
+              << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL
               << " cov_library=" << COV_LIBRARY_REL << " rng_seed=" << kRngSeed
               << " armed_threshold=" << kArmedThreshold << " disarm=threshold_10x_budget_plus_10"
               << " ladder=3200,6400,12800,25600,51200,102400,204800,409600"
@@ -531,23 +535,23 @@ TEST(AddGateCeilingDepth, HowDeepIsTheCeilingOfHavocAlone) {
     // and are not admitted against the budget, only counted into it.
     CampaignStats armed_at_pin;
     std::uint64_t armed_pin_wall = 0;
-    ASSERT_TRUE(Probe1("control-armed-18", ++seq, kPinTask067MinBudget, /*armed=*/true,
+    ASSERT_TRUE(Probe1("control-armed-at-strict-pin", ++seq, kPinTask067MinBudget, /*armed=*/true,
                        "mlfuzzz3_add_gate_ceiling_depth_armed", log, invalid, armed_at_pin,
                        armed_pin_wall));
     total_wall_ms += armed_pin_wall;
     const bool armed_18_crash = armed_at_pin.crashes > 0;
-    EXPECT_GT(armed_at_pin.crashes, 0U)
-        << "armed arm no longer crashes at budget 18 — task-067's pin does not reproduce";
+    EXPECT_GT(armed_at_pin.crashes, 0U) << "armed arm no longer crashes at the strict terminal "
+                                           "budget — task-067's pin does not reproduce";
 
     CampaignStats armed_below;
     std::uint64_t armed_below_wall = 0;
-    ASSERT_TRUE(Probe1("control-armed-17", ++seq, kPinTask067MinBudget - 1, /*armed=*/true,
-                       "mlfuzzz3_add_gate_ceiling_depth_armed", log, invalid, armed_below,
-                       armed_below_wall));
+    ASSERT_TRUE(Probe1("control-armed-below-strict-pin", ++seq, kPinTask067MinBudget - 1,
+                       /*armed=*/true, "mlfuzzz3_add_gate_ceiling_depth_armed", log, invalid,
+                       armed_below, armed_below_wall));
     total_wall_ms += armed_below_wall;
     const bool armed_17_crash = armed_below.crashes > 0;
     EXPECT_EQ(armed_below.crashes, 0U)
-        << "armed arm crashes at budget 17 — task-067's pin does not reproduce";
+        << "armed arm crashes below the strict terminal budget — task-067's pin does not reproduce";
 
     // --- Invariants of the disarmed arm.
     EXPECT_TRUE(invalid.empty()) << "disarmed probes that called the solver: " << invalid.size();
@@ -590,8 +594,8 @@ TEST(AddGateCeilingDepth, HowDeepIsTheCeilingOfHavocAlone) {
               << " refined=" << (refined ? "yes" : "no") << " bracket_lo=" << bracket_lo
               << " bracket_hi=" << bracket_hi
               << " monotonic_verified=" << (monotonic ? "yes" : "no")
-              << " control_armed_crash_at_18=" << (armed_18_crash ? "yes" : "no")
-              << " control_armed_crash_at_17=" << (armed_17_crash ? "yes" : "no")
+              << " control_armed_crash_at_strict_pin=" << (armed_18_crash ? "yes" : "no")
+              << " control_armed_crash_below_strict_pin=" << (armed_17_crash ? "yes" : "no")
               << " walltime_used_ms=" << total_wall_ms
               << " walltime_budget_ms=" << kWalltimeBudgetMs << '\n'
               << std::flush;

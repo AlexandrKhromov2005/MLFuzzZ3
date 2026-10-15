@@ -82,6 +82,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -215,7 +216,7 @@ static_assert(kRngSeeds.size() == 10,
 // published on it: docs/experiments/solver-niche-be-threshold64/report.md:9 --
 // "VERDICT: NICHE-BE-T64: gate=add_gate_be, rng_seed=7, be_min_budget_t64=92,".
 constexpr std::uint64_t kDonorSeed = 7;
-constexpr std::uint64_t kDonorExpectedBeT64 = 92;
+constexpr std::uint64_t kDonorExpectedBeT64 = test_support::strict_terminal_budget(92);
 
 // The production default, and the whole point of the unit.
 constexpr std::uint32_t kStagnationThreshold = 64;
@@ -328,6 +329,7 @@ void RunCampaign(const char* fixture_bin, const char* seed_name, const char* met
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -479,8 +481,10 @@ TEST(AddGateBeEnsembleThreshold64, EnsembleOfTenSeedsOnTheBigEndianGateAtTheProd
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - t_start).count();
     };
 
-    std::cout << "BE-ENS64-META add_gate_be=" << ADD_GATE_BE_REL
-              << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
+    std::cout << "BE-ENS64-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one add_gate_be="
+              << ADD_GATE_BE_REL << " exec_server=" << EXEC_SERVER_REL
+              << " cov_library=" << COV_LIBRARY_REL
               << " encoding=u32be fields_offsets=0|4 arm_seed=donor stagnation_threshold="
               << kStagnationThreshold << " search_lo=" << kSearchLo << " search_hi=" << kSearchHi
               << " rule=binary-search-task-067 method_pin=tests/integration/concolic/"
@@ -607,7 +611,7 @@ TEST(AddGateBeEnsembleThreshold64, EnsembleOfTenSeedsOnTheBigEndianGateAtTheProd
     EXPECT_TRUE(donor_control_ok) << "donor seed " << kDonorSeed << " returned "
                                   << (donor_solved ? std::to_string(donor_min)
                                                    : std::string("none"))
-                                  << " instead of task-111's published " << kDonorExpectedBeT64
+                                  << " instead of expected strict budget " << kDonorExpectedBeT64
                                   << "; every median in this run is unproven";
 
     // --- The median, by the rule fixed above and nothing else.

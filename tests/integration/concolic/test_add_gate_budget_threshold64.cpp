@@ -73,6 +73,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -210,9 +211,11 @@ static_assert(kProductionThreshold == 64,
 // The two controls. Both are RE-RUN by this harness, never quoted: a control
 // that is only cited proves nothing about the bench the new number came from.
 constexpr std::uint32_t kControlThresholdA = 8;
-constexpr std::uint64_t kControlExpectedA = 18;  // task-067, crash-budget/report.md:10
+constexpr std::uint64_t kControlExpectedA =
+    test_support::strict_terminal_budget(18);  // task-067, crash-budget/report.md:10
 constexpr std::uint32_t kControlThresholdB = 32;
-constexpr std::uint64_t kControlExpectedB = 51;  // task-072, stagnation-axis/report.md:12
+constexpr std::uint64_t kControlExpectedB =
+    test_support::strict_terminal_budget(51);  // task-072, stagnation-axis/report.md:12
 
 // PRE-REGISTERED axis in run order: both controls first, the production point
 // last, so its prediction is printed after the controls have vouched for the
@@ -318,6 +321,7 @@ void RunCampaign(std::uint32_t stagnation_threshold, std::uint64_t max_iteration
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -594,9 +598,10 @@ void MeasureThreshold(std::uint32_t threshold, int& seq, ThresholdResult& out) {
 
 // The header of the raw log: what was fixed before the first probe ran.
 void PrintMeta() {
-    std::cout << "THRESHOLD64-META gate=add_gate add_gate=" << ADD_GATE_REL
-              << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
-              << " rng_seed=" << kRngSeed << " arm_seed=donor"
+    std::cout << "THRESHOLD64-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one gate=add_gate add_gate="
+              << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL
+              << " cov_library=" << COV_LIBRARY_REL << " rng_seed=" << kRngSeed << " arm_seed=donor"
               << " production_default=" << kProductionThreshold
               << " production_default_source=src/core/campaign.h:58"
               << " search_lo=" << kSearchLo << " search_hi=" << kSearchHi
@@ -707,10 +712,12 @@ TEST(AddGateBudgetThreshold64, ProductionDefaultStagnationThreshold) {
               << std::flush;
 
     EXPECT_TRUE(control_a_holds)
-        << "control at threshold 8 did not reproduce task-067's " << kControlExpectedA
+        << "control at threshold 8 did not reproduce the strict-budget equivalent of task-067's "
+        << kControlExpectedA
         << "; the bench is not the same bench and every line about 64 is unproven";
     EXPECT_TRUE(control_b_holds)
-        << "control at threshold 32 did not reproduce task-072's " << kControlExpectedB
+        << "control at threshold 32 did not reproduce the strict-budget equivalent of task-072's "
+        << kControlExpectedB
         << "; the bench is not the same bench and every line about 64 is unproven";
     EXPECT_LE(walltime_used, static_cast<std::uint64_t>(kWalltimeBudgetS))
         << "the harness overran its own wall-clock budget";

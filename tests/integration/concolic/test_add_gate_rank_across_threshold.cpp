@@ -87,6 +87,7 @@
 #include "runner.h"
 #include "seed_scheduler.h"
 #include "session.h"
+#include "strict_budget_controls.h"
 
 namespace mlfuzzz3::core {
 namespace {
@@ -240,7 +241,7 @@ constexpr const char* kSelectionRule =
 // (docs/experiments/solver-add-gate-threshold64/report.md:12, min_budget_at_64=83)
 // and is RE-RUN here. A control that is only cited proves nothing about the
 // stand the two new numbers came from.
-constexpr std::uint64_t kDonorExpectedT64 = 83;
+constexpr std::uint64_t kDonorExpectedT64 = test_support::strict_terminal_budget(83);
 
 // PRE-REGISTERED sweep order: the control FIRST, the two new seeds after it.
 constexpr std::array<std::uint64_t, 3> kSeeds = {kDonorRngSeed, kMinRngSeed, kMedianRngSeed};
@@ -380,6 +381,7 @@ void RunCampaign(std::uint64_t rng_seed, std::uint64_t max_iterations, CampaignS
     const auto t0 = std::chrono::steady_clock::now();
     CampaignLoop loop(runner, mutator, scheduler, *corpus, *metrics, cfg);
     out_stats = loop.Run();
+    EXPECT_LE(out_stats.execs, max_iterations) << "execution budget must include preparation";
     const auto t1 = std::chrono::steady_clock::now();
     out_wall_ms = static_cast<std::uint64_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
@@ -671,9 +673,10 @@ void MeasureSeed(std::uint64_t rng_seed, std::uint64_t t8_min_budget, int& seq, 
 
 // The header of the raw log: what was fixed before the first probe ran.
 void PrintMeta() {
-    std::cout << "RANK-META gate=add_gate add_gate=" << ADD_GATE_REL
-              << " exec_server=" << EXEC_SERVER_REL << " cov_library=" << COV_LIBRARY_REL
-              << " threshold=" << kProductionThreshold
+    std::cout << "RANK-META budget_units=strict_execs historical_controls=legacy_requested "
+                 "terminal_control_adjustment=plus_one gate=add_gate add_gate="
+              << ADD_GATE_REL << " exec_server=" << EXEC_SERVER_REL
+              << " cov_library=" << COV_LIBRARY_REL << " threshold=" << kProductionThreshold
               << " threshold_source=src/core/campaign.h:58 arm_seed=donor"
               << " search_lo=" << kSearchLo << " search_hi=" << kSearchHi
               << " seeds=" << kSeeds.size()
@@ -802,7 +805,8 @@ TEST(AddGateRankAcrossThreshold, DonorRankAtTheProductionStagnationThreshold) {
               << std::flush;
 
     EXPECT_TRUE(control_holds)
-        << "control seed " << kDonorRngSeed << " did not reproduce task-081's " << kDonorExpectedT64
+        << "control seed " << kDonorRngSeed
+        << " did not reproduce the strict-budget equivalent of task-081's " << kDonorExpectedT64
         << " at the production threshold; the stand is not the same stand and every line about "
            "transferability is unproven";
     EXPECT_LE(walltime_used, static_cast<std::uint64_t>(kWalltimeBudgetS))
